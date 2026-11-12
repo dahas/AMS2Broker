@@ -13,18 +13,13 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
+
+#include "json.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
 const int SERVER_PORT = 58888;
-
-const uintptr_t CAR_ADDRESS = 0x1818C41F4;
-const uintptr_t LIVERY_ADDRESS = 0x1818C4764;
-const uintptr_t TRACK_ADDRESS = 0x1818C1674;
-const uintptr_t PRACTICE_ADDRESS = 0x1817BD934;
-const uintptr_t QUALIFYING_ADDRESS = 0x1817CA454;
-const uintptr_t DURATION_TYPE_ADDRESS = 0x1818AE1D4;
-const uintptr_t LAP_ADDRESS = 0x1818AE3A4;
 
 const bool USE_CAR_HOOK = false;
 const uintptr_t CAR_HOOK_RVA = 0x3FD3D1;
@@ -42,6 +37,63 @@ const char* LOG_PATH = "C:\\Users\\Public\\ams2_broker.log";
 static std::mutex g_logMutex;
 static std::mutex g_hookMutex;
 static uintptr_t g_forceCarAddr = 0;
+
+struct IntSetting {
+    const std::vector<std::string>* path;
+    uintptr_t address;
+};
+
+const uintptr_t CAR_ADDRESS = 0x1818C41F4;
+const uintptr_t LIVERY_ADDRESS = 0x1818C4764;
+const uintptr_t TRACK_ADDRESS = 0x1818C1674;
+const uintptr_t PRACTICE_ADDRESS = 0x1817BD934;
+const uintptr_t QUALIFYING_ADDRESS = 0x1817CA454;
+const uintptr_t DURATION_TYPE_ADDRESS = 0x1818AE1D4;
+const uintptr_t TIME_ADDRESS = 0x1818AE574;
+const uintptr_t EXTRA_LAP_ADDRESS = 0x1818AE744;
+const uintptr_t LAPS_ADDRESS = 0x1818AE3A4;
+const uintptr_t DATE_TYPE_ADDRESS = 0x1818B26B4;
+const uintptr_t CUSTOM_DAY_ADDRESS = 0x1818B2FC4;
+const uintptr_t CUSTOM_MONTH_ADDRESS = 0x1818B3194;
+const uintptr_t CUSTOM_YEAR_ADDRESS = 0x1818B3364;
+const uintptr_t STARTTIME_ADDRESS = 0x1818B2C24;
+const uintptr_t TIME_PROG_ADDRESS = 0x1818B0B84;
+
+namespace P {
+    static const std::vector<std::string> Car = { "Vehicle", "Car" };
+    static const std::vector<std::string> Livery = { "Vehicle", "Livery" };
+    static const std::vector<std::string> Track = { "Track" };
+    static const std::vector<std::string> Practice = { "Practice", "Enabled" };
+    static const std::vector<std::string> Qualifying = { "Qualifying", "Enabled" };
+    static const std::vector<std::string> RaceDurType = { "Race", "DurationType" };
+    static const std::vector<std::string> RaceTime = { "Race", "Time" };
+    static const std::vector<std::string> RaceExtraLap = { "Race", "+1Lap" };
+    static const std::vector<std::string> RaceLaps = { "Race", "Laps" };
+    static const std::vector<std::string> RaceDateType = { "Race", "DateType" };
+    static const std::vector<std::string> RaceCustomDay = { "Race", "CustomDay" };
+    static const std::vector<std::string> RaceCustomMonth = { "Race", "CustomMonth" };
+    static const std::vector<std::string> RaceCustomYear = { "Race", "CustomYear" };
+    static const std::vector<std::string> RaceStartTime = { "Race", "StartTime" };
+    static const std::vector<std::string> RaceTimeProg = { "Race", "TimeProgression" };
+}
+
+static const IntSetting SETTINGS[] = {
+    { &P::Car,              CAR_ADDRESS },
+    { &P::Livery,           LIVERY_ADDRESS },
+    { &P::Track,            TRACK_ADDRESS },
+    { &P::Practice,         PRACTICE_ADDRESS },
+    { &P::Qualifying,       QUALIFYING_ADDRESS },
+    { &P::RaceDurType,      DURATION_TYPE_ADDRESS },
+    { &P::RaceTime,         TIME_ADDRESS },
+    { &P::RaceExtraLap,     EXTRA_LAP_ADDRESS },
+    { &P::RaceLaps,         LAPS_ADDRESS },
+    { &P::RaceDateType,     DATE_TYPE_ADDRESS },
+    { &P::RaceCustomDay,    CUSTOM_DAY_ADDRESS },
+    { &P::RaceCustomMonth,  CUSTOM_MONTH_ADDRESS },
+    { &P::RaceCustomYear,   CUSTOM_YEAR_ADDRESS },
+    { &P::RaceStartTime,    STARTTIME_ADDRESS },
+    { &P::RaceTimeProg,     TIME_PROG_ADDRESS },
+};
 
 void Log(const char* fmt, ...) {
     std::lock_guard<std::mutex> lock(g_logMutex);
@@ -154,85 +206,21 @@ bool InstallCarHook() {
     return true;
 }
 
-static std::string StripComments(const std::string& s) {
-    std::string out;
-    size_t i = 0;
-    while (i < s.size()) {
-        if (s[i] == '/' && i + 1 < s.size() && s[i + 1] == '/') {
-            while (i < s.size() && s[i] != '\n') i++;
-        }
-        else {
-            out += s[i++];
-        }
-    }
-    return out;
-}
-
-static std::string Section(const std::string& json, const char* name) {
-    std::string quoted = std::string("\"") + name + "\"";
-    size_t k = json.find(quoted);
-    if (k == std::string::npos) return "";
-    size_t b = json.find_first_not_of(" \t\r\n:", k + quoted.size());
-    if (b == std::string::npos || json[b] != '{') return "";
-    int depth = 0;
-    for (size_t i = b; i < json.size(); i++) {
-        if (json[i] == '{') depth++;
-        else if (json[i] == '}') {
-            if (--depth == 0) return json.substr(b + 1, i - b - 1);
-        }
-    }
-    return "";
-}
-
-static bool GetInt(const std::string& scope, const char* key, long long& out) {
-    size_t k = scope.find(std::string("\"") + key + "\"");
-    if (k == std::string::npos) return false;
-    size_t c = scope.find(':', k);
-    if (c == std::string::npos) return false;
-    size_t s = scope.find_first_not_of(" \t\r\n", c + 1);
-    if (s == std::string::npos) return false;
-    if (scope.compare(s, 4, "true") == 0) { out = 1; return true; }
-    if (scope.compare(s, 5, "false") == 0) { out = 0; return true; }
-    size_t e = scope.find_first_not_of("-0123456789", s);
-    if (e == s) return false;
-    try {
-        out = std::stoll(scope.substr(s, e == std::string::npos ? std::string::npos : e - s));
-    }
-    catch (...) {
-        return false;
-    }
-    return true;
-}
-
-struct IntSetting {
-    const char* section;
-    const char* key;
-    uintptr_t address;
-};
-
-static const IntSetting SETTINGS[] = {
-    { "Vehicle",    "Car",           CAR_ADDRESS },
-    { "Vehicle",    "Livery",        LIVERY_ADDRESS },
-    { "",           "Track",         TRACK_ADDRESS },
-    { "Practice",   "Enabled",       PRACTICE_ADDRESS },
-    { "Qualifying", "Enabled",       QUALIFYING_ADDRESS },
-    { "Race",       "Duration Type", DURATION_TYPE_ADDRESS },
-    { "Race",       "Laps",          LAP_ADDRESS },
-};
-
 bool ApplySettings(const std::string& json) {
     bool allOk = true;
     for (const auto& s : SETTINGS) {
         if (USE_CAR_HOOK && s.address == CAR_ADDRESS) continue;
 
-        std::string scope = s.section[0] ? Section(json, s.section) : json;
         long long v = 0;
-        if (!GetInt(scope, s.key, v)) continue;
+        if (!GetIntAtPath(json, *s.path, v)) continue;
+
+        int target = (int)v;
+        if (s.address == LIVERY_ADDRESS) target += 1; // Livery: Add offset 1
 
         int before = -1, after = -1;
-        bool ok = PatchInt(s.address, (int)v, &before, &after);
-        Log("[SET] %s.%s ziel=%lld ok=%d vorher=%d nachher=%d\n",
-            s.section, s.key, v, ok ? 1 : 0, before, after);
+        bool ok = PatchInt(s.address, target, &before, &after);
+        Log("[SET] %s json=%lld ziel=%d ok=%d vorher=%d nachher=%d\n",
+            s.path->back().c_str(), v, target, ok ? 1 : 0, before, after);
         if (!ok) allOk = false;
     }
     return allOk;
@@ -240,9 +228,8 @@ bool ApplySettings(const std::string& json) {
 
 bool ApplyCarHook(const std::string& json) {
     if (!USE_CAR_HOOK) return true;
-    std::string vehicle = Section(json, "Vehicle");
     long long car = 0;
-    if (!GetInt(vehicle, "Car", car)) return true;
+    if (!GetIntAtPath(json, P::Car, car)) return true;
     if (!InstallCarHook()) return false;
     bool ok = SafeWrite32(g_forceCarAddr, (int)car);
     Log("[CAR] forceCar=%lld ok=%d\n", car, ok ? 1 : 0);
@@ -298,58 +285,9 @@ bool ApplyClassesNow(const std::map<int, int>& parsed) {
     return allOk;
 }
 
-bool ParseClassStates(const std::string& json) {
-    size_t classPos = json.find("\"ClassStates\"");
-    if (classPos == std::string::npos) return true;
-
-    size_t startBrace = json.find('{', classPos);
-    if (startBrace == std::string::npos) return true;
-    size_t endBrace = json.find('}', startBrace);
-    if (endBrace == std::string::npos) return true;
-
-    std::string classStr = json.substr(startBrace + 1, endBrace - startBrace - 1);
-
+bool ApplyClassStates(const std::string& json) {
     std::map<int, int> parsed;
-    size_t pos = 0;
-
-    while (pos < classStr.length()) {
-        size_t qs = classStr.find('"', pos);
-        if (qs == std::string::npos) break;
-        size_t qe = classStr.find('"', qs + 1);
-        if (qe == std::string::npos) break;
-        std::string key = classStr.substr(qs + 1, qe - qs - 1);
-
-        size_t colon = classStr.find(':', qe);
-        if (colon == std::string::npos) break;
-        size_t v = classStr.find_first_not_of(" \t\r\n", colon + 1);
-        if (v == std::string::npos) break;
-        if (classStr[v] == '"') {
-            v++;
-            if (v >= classStr.length()) break;
-        }
-
-        int val = -1;
-        size_t consumed = 1;
-        if (classStr.compare(v, 4, "true") == 0) { val = 1; consumed = 4; }
-        else if (classStr.compare(v, 5, "false") == 0) { val = 0; consumed = 5; }
-        else if (classStr[v] == '1') { val = 1; }
-        else if (classStr[v] == '0') { val = 0; }
-
-        pos = v + consumed;
-        if (val < 0) continue;
-
-        int classNumber = 0;
-        try {
-            classNumber = std::stoi(key);
-        }
-        catch (...) {
-            continue;
-        }
-
-        if (classNumber < 1 || classNumber > MAX_CLASSES) continue;
-        parsed[classNumber] = val;
-    }
-
+    if (!ParseClassStates(json, parsed)) return true;
     if (parsed.empty()) return true;
     return ApplyClassesNow(parsed);
 }
@@ -424,7 +362,7 @@ void HandleClient(SOCKET clientSocket) {
             std::string json = StripComments(body);
             bool setOk = ApplySettings(json);
             bool carOk = ApplyCarHook(json);
-            bool classesOk = ParseClassStates(json);
+            bool classesOk = ApplyClassStates(json);
 
             if (!carOk) SendResponse(clientSocket, "500 Internal Server Error", "CAR HOOK FAILED");
             else if (!setOk) SendResponse(clientSocket, "500 Internal Server Error", "SETTING FAILED");

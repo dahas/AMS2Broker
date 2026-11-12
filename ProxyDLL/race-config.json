@@ -1,17 +1,25 @@
 {
 	"Vehicle": {
-		"Car": 428770333, // Dallara F301
-		"Livery": 57 // 56 Power on Motors
+		"Car": 428770333, // Vehicle ID (Dallara F301) -> Find it in ams2_vehicles.json
+		"Livery": 56 // Livery ID (Power on Motors) -> Find it in ams2_liveries.json
 	},
-	"Track": 2058166835, // Guapore
+	"Track": 2058166835, // Track ID (Guapore) -> Find it in ams2_tracks.json
 	"Practice": {
-		"Enabled": 0
+		"Enabled": 0 // 0 or 1
 	},
 	"Qualifying": {
-		"Enabled": 0
+		"Enabled": 0 // 0 or 1
 	},
 	"Race": {
-		"Duration Type": 0,
-		"Laps": 22
+		"DurationType": 1, // 0=Time, 1=Laps
+		"Time": 55, // 5-1440, 5
+		"+1Lap": 1, // 0 or 1
+		"Laps": 111, // 1-999
+		"DateType": 2, // 0=Default, 1=Current, 2=Custom
+		"CustomDay": 13, // 1-31
+		"CustomMonth": 6, // 1-12
+		"CustomYear": 1995, // 1970-2099
+		"StartTime": 13, // 0-23
+		"TimeProgression": 3 // 0=Off, 1=Realtime, 2=2X, 3=5X, 4=10X, 5=15X, 6=20X, 7=25X, 8=30X, 9=40X, 10=50X, 11=60X
 	}
 }
