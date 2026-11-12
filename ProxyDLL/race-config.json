@@ -1,0 +1,17 @@
+{
+	"Vehicle": {
+		"Car": 428770333, // Dallara F301
+		"Livery": 57 // 56 Power on Motors
+	},
+	"Track": 2058166835, // Guapore
+	"Practice": {
+		"Enabled": 0
+	},
+	"Qualifying": {
+		"Enabled": 0
+	},
+	"Race": {
+		"Duration Type": 0,
+		"Laps": 22
+	}
+}

@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Ams2Launcher.vcxproj" Id="818ee681-5fa1-483f-a4fd-de8142929fa2" />
+</Solution>

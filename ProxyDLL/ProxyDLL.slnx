@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="ProxyDLL.vcxproj" Id="205e98fa-51c4-48d4-8a61-ededd039da6c" />
+</Solution>
