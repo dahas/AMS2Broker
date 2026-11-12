@@ -30,6 +30,9 @@
     <ClInclude Include="json.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="utils.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ProxyDLL.cpp">
@@ -42,6 +45,9 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="json.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="utils.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,13 +1,8 @@
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-
 #include "pch.h"
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <cstdarg>
 #include <cstdint>
-#include <cstdio>
-#include <cstring>
 #include <cctype>
 #include <map>
 #include <mutex>
@@ -16,6 +11,7 @@
 #include <vector>
 
 #include "json.h"
+#include "utils.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -24,7 +20,7 @@ const int SERVER_PORT = 58888;
 const bool USE_CAR_HOOK = false;
 const uintptr_t CAR_HOOK_RVA = 0x3FD3D1;
 
-const uintptr_t CLASS_ROOT = 0x1818C05C0;
+const uintptr_t CLASS_ROOT_ADDR = 0x1818C05C0;
 const uintptr_t CLASS_OFF1 = 0x130;
 const uintptr_t CLASS_OFF2 = 0xA8;
 const int CLASS_STRIDE = 0x930;
@@ -32,15 +28,13 @@ const int CLASS_FLAG_OFFSET = 0x52C;
 const int MAX_CLASSES = 89;
 
 const size_t MAX_REQUEST_SIZE = 64 * 1024;
-const char* LOG_PATH = "C:\\Users\\Public\\ams2_broker.log";
 
-static std::mutex g_logMutex;
 static std::mutex g_hookMutex;
 static uintptr_t g_forceCarAddr = 0;
 
 struct IntSetting {
     const std::vector<std::string>* path;
-    uintptr_t address;
+    uintptr_t absoluteAddress;
 };
 
 const uintptr_t CAR_ADDRESS = 0x1818C41F4;
@@ -58,6 +52,7 @@ const uintptr_t CUSTOM_MONTH_ADDRESS = 0x1818B3194;
 const uintptr_t CUSTOM_YEAR_ADDRESS = 0x1818B3364;
 const uintptr_t STARTTIME_ADDRESS = 0x1818B2C24;
 const uintptr_t TIME_PROG_ADDRESS = 0x1818B0B84;
+const uintptr_t CLASS_ROOT_ADDRESS = 0x1818C05C0;
 
 namespace P {
     static const std::vector<std::string> Car = { "Vehicle", "Car" };
@@ -95,63 +90,11 @@ static const IntSetting SETTINGS[] = {
     { &P::RaceTimeProg,     TIME_PROG_ADDRESS },
 };
 
-void Log(const char* fmt, ...) {
-    std::lock_guard<std::mutex> lock(g_logMutex);
-    FILE* f = nullptr;
-    fopen_s(&f, LOG_PATH, "a");
-    if (!f) return;
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(f, fmt, args);
-    va_end(args);
-    fclose(f);
-}
-
-static bool SafeRead(uintptr_t addr, void* out, size_t size) {
-    __try {
-        memcpy(out, (void*)addr, size);
-        return true;
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
-        return false;
-    }
-}
-
-static bool SafeWrite32(uintptr_t addr, int value) {
-    __try {
-        *(volatile int*)addr = value;
-        return true;
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
-        return false;
-    }
-}
-
-bool PatchInt(uintptr_t address, int value, int* before, int* after) {
-    MEMORY_BASIC_INFORMATION mbi{};
-    if (!VirtualQuery((void*)address, &mbi, sizeof(mbi)) || mbi.State != MEM_COMMIT)
-        return false;
-
-    DWORD oldProtect;
-    if (!VirtualProtect((void*)address, sizeof(int), PAGE_EXECUTE_READWRITE, &oldProtect))
-        return false;
-
-    int b = -1, a = -1;
-    SafeRead(address, &b, sizeof(b));
-    bool ok = SafeWrite32(address, value);
-    SafeRead(address, &a, sizeof(a));
-    VirtualProtect((void*)address, sizeof(int), oldProtect, &oldProtect);
-
-    if (before) *before = b;
-    if (after) *after = a;
-    return ok && a == value;
-}
-
 bool InstallCarHook() {
     std::lock_guard<std::mutex> lock(g_hookMutex);
     if (g_forceCarAddr) return true;
 
-    uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
+    uintptr_t base = ModuleBase();
     uintptr_t site = base + CAR_HOOK_RVA;
 
     static const uint8_t orig[7] = { 0x41, 0x8B, 0xD4, 0x48, 0x89, 0x45, 0x40 };
@@ -209,16 +152,19 @@ bool InstallCarHook() {
 bool ApplySettings(const std::string& json) {
     bool allOk = true;
     for (const auto& s : SETTINGS) {
-        if (USE_CAR_HOOK && s.address == CAR_ADDRESS) continue;
+        if (USE_CAR_HOOK && s.absoluteAddress == CAR_ADDRESS) continue;
 
         long long v = 0;
         if (!GetIntAtPath(json, *s.path, v)) continue;
 
         int target = (int)v;
-        if (s.address == LIVERY_ADDRESS) target += 1; // Livery: Add offset 1
+        if (s.absoluteAddress == LIVERY_ADDRESS) target += 1;
 
         int before = -1, after = -1;
-        bool ok = PatchInt(s.address, target, &before, &after);
+
+        uintptr_t rva = RvaFromAbsolute(s.absoluteAddress);
+        bool ok = PatchInt(At(rva), target, &before, &after);
+
         Log("[SET] %s json=%lld ziel=%d ok=%d vorher=%d nachher=%d\n",
             s.path->back().c_str(), v, target, ok ? 1 : 0, before, after);
         if (!ok) allOk = false;
@@ -238,7 +184,8 @@ bool ApplyCarHook(const std::string& json) {
 
 bool ResolveClassBase(uintptr_t& base) {
     uintptr_t p1 = 0, p2 = 0, p3 = 0;
-    if (!SafeRead(CLASS_ROOT + CLASS_OFF1, &p1, sizeof(p1)) || !p1) return false;
+    uintptr_t rva = RvaFromAbsolute(CLASS_ROOT_ADDR);
+    if (!SafeRead(At(rva) + CLASS_OFF1, &p1, sizeof(p1)) || !p1) return false;
     if (!SafeRead(p1 + CLASS_OFF2, &p2, sizeof(p2)) || !p2) return false;
     if (!SafeRead(p2, &p3, sizeof(p3)) || !p3) return false;
     base = p3;
@@ -399,15 +346,7 @@ void StartHttpServer() {
 
     listen(serverSocket, SOMAXCONN);
 
-    {
-        std::lock_guard<std::mutex> lock(g_logMutex);
-        FILE* f = nullptr;
-        fopen_s(&f, LOG_PATH, "w");
-        if (f) {
-            fprintf(f, "[HTTP] Server gestartet.\n");
-            fclose(f);
-        }
-    }
+    InitLog();
 
     while (true) {
         SOCKET clientSocket = accept(serverSocket, NULL, NULL);
@@ -417,8 +356,33 @@ void StartHttpServer() {
     }
 }
 
+bool ValidateAddresses() {
+    bool ok = true;
+
+    for (const auto& s : SETTINGS) {
+        int probe = 0;
+        uintptr_t rva = RvaFromAbsolute(s.absoluteAddress);
+        if (!SafeRead(At(rva), &probe, sizeof(probe))) {
+            Log("[INIT] Adresse 0x%llX (RVA 0x%llX) ungueltig - Update oder ASLR-Problem?\n",
+                (unsigned long long)s.absoluteAddress, (unsigned long long)rva);
+            ok = false;
+        }
+    }
+
+    int classProbe = 0;
+    uintptr_t classRva = RvaFromAbsolute(CLASS_ROOT_ADDR);
+    if (!SafeRead(At(classRva), &classProbe, sizeof(classProbe))) {
+        Log("[INIT] CLASS_ROOT_ADDR (RVA 0x%llX) ungueltig - Update oder ASLR-Problem?\n",
+            (unsigned long long)classRva);
+        ok = false;
+    }
+
+    return ok;
+}
+
 DWORD WINAPI MainThread(LPVOID lpParam) {
     Sleep(2000);
+    ValidateAddresses();
     StartHttpServer();
     return 0;
 }
