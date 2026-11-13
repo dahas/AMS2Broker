@@ -1,9 +1,3 @@
-Ams2Broker/
-Ams2Dummy/
-ClientExample/
-
-###########
-
 # Visual Studio
 .vs/
 *.vcxproj.user

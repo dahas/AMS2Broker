@@ -37,57 +37,238 @@ struct IntSetting {
     uintptr_t absoluteAddress;
 };
 
-const uintptr_t CAR_ADDRESS = 0x1818C41F4;
-const uintptr_t LIVERY_ADDRESS = 0x1818C4764;
+const uintptr_t VEH_CAR_ADDRESS = 0x1818C41F4;
+const uintptr_t VEH_LIVERY_ADDRESS = 0x1818C4764;
+
 const uintptr_t TRACK_ADDRESS = 0x1818C1674;
-const uintptr_t PRACTICE_ADDRESS = 0x1817BD934;
-const uintptr_t QUALIFYING_ADDRESS = 0x1817CA454;
-const uintptr_t DURATION_TYPE_ADDRESS = 0x1818AE1D4;
-const uintptr_t TIME_ADDRESS = 0x1818AE574;
-const uintptr_t EXTRA_LAP_ADDRESS = 0x1818AE744;
-const uintptr_t LAPS_ADDRESS = 0x1818AE3A4;
-const uintptr_t DATE_TYPE_ADDRESS = 0x1818B26B4;
-const uintptr_t CUSTOM_DAY_ADDRESS = 0x1818B2FC4;
-const uintptr_t CUSTOM_MONTH_ADDRESS = 0x1818B3194;
-const uintptr_t CUSTOM_YEAR_ADDRESS = 0x1818B3364;
-const uintptr_t STARTTIME_ADDRESS = 0x1818B2C24;
-const uintptr_t TIME_PROG_ADDRESS = 0x1818B0B84;
+
+const uintptr_t P_ENABLED_ADDRESS = 0x1817BD934;
+const uintptr_t P_MINUTES_ADDRESS = 0x1817BE414;
+const uintptr_t P_STARTTIME_ADDRESS = 0x1817C2AC4;
+const uintptr_t P_TIME_PROG_ADDRESS = 0x1817C0A24;
+const uintptr_t P_WEATHER_SLOTS_ADDRESS = 0x1817C0DC4;
+const uintptr_t P_WEATHER_SLOT1_ADDRESS = 0x1817C0F94;
+const uintptr_t P_WEATHER_SLOT2_ADDRESS = 0x1817C1504;
+const uintptr_t P_WEATHER_SLOT3_ADDRESS = 0x1817C1A74;
+const uintptr_t P_WEATHER_SLOT4_ADDRESS = 0x1817C1FE4;
+const uintptr_t P_WEATHER_PROG_ADDRESS = 0x1817C0BF4;
+const uintptr_t P_LIVETRACK_ADDRESS = 0x1817C35A4;
+
+const uintptr_t Q_ENABLED_ADDRESS = 0x1817CA454;
+const uintptr_t Q_MINUTES_ADDRESS = 0x1817CAF34;
+const uintptr_t Q_PRIVAT_SESSION_ADDRESS = 0x1817CC4F4;
+const uintptr_t Q_STINT_LIMIT_ADDRESS = 0x1817CBA14;
+const uintptr_t Q_LAPS_LIMIT_ADDRESS = 0x1817CBBE4;
+const uintptr_t Q_STARTTIME_ADDRESS = 0x1817CF5E4;
+const uintptr_t Q_TIME_PROG_ADDRESS = 0x1817CD544;
+const uintptr_t Q_WEATHER_SLOTS_ADDRESS = 0x1817CD8E4;
+const uintptr_t Q_WEATHER_SLOT1_ADDRESS = 0x1817CDAB4;
+const uintptr_t Q_WEATHER_SLOT2_ADDRESS = 0x1817CE024;
+const uintptr_t Q_WEATHER_SLOT3_ADDRESS = 0x1817CE594;
+const uintptr_t Q_WEATHER_SLOT4_ADDRESS = 0x1817CEB04;
+const uintptr_t Q_WEATHER_PROG_ADDRESS = 0x1817CD714;
+const uintptr_t Q_LIVETRACK_ADDRESS = 0x1817D00C4;
+
+const uintptr_t R_DURATION_TYPE_ADDRESS = 0x1818AE1D4;
+const uintptr_t R_MINUTES_ADDRESS = 0x1818AE574;
+const uintptr_t R_EXTRA_LAP_ADDRESS = 0x1818AE744;
+const uintptr_t R_LAPS_ADDRESS = 0x1818AE3A4;
+const uintptr_t R_DATE_TYPE_ADDRESS = 0x1818B26B4;
+const uintptr_t R_CUSTOM_DAY_ADDRESS = 0x1818B2FC4;
+const uintptr_t R_CUSTOM_MONTH_ADDRESS = 0x1818B3194;
+const uintptr_t R_CUSTOM_YEAR_ADDRESS = 0x1818B3364;
+const uintptr_t R_STARTTIME_ADDRESS = 0x1818B2C24;
+const uintptr_t R_TIME_PROG_ADDRESS = 0x1818B0B84;
+const uintptr_t R_WEATHER_SLOTS_ADDRESS = 0x1818B0F24;
+const uintptr_t R_WEATHER_SLOT1_ADDRESS = 0x1818B10F4;
+const uintptr_t R_WEATHER_SLOT2_ADDRESS = 0x1818B1664;
+const uintptr_t R_WEATHER_SLOT3_ADDRESS = 0x1818B1BD4;
+const uintptr_t R_WEATHER_SLOT4_ADDRESS = 0x1818B2144;
+const uintptr_t R_WEATHER_PROG_ADDRESS = 0x1818B0D54;
+const uintptr_t R_START_TYPE_ADDRESS = 0x1818AFD04;
+const uintptr_t R_FORMATION_LAP_ADDRESS = 0x1818B07E4;
+const uintptr_t R_ALLOW_REFUEL_ADDRESS = 0x1818B0614;
+const uintptr_t R_MANDATORY_STOP_ADDRESS = 0x1818AFED4;
+const uintptr_t R_MANDATORY_TYRES_ADDRESS = 0x1818B00A4;
+const uintptr_t R_SCHEDULED_FCY_ADDRESS = 0x1818B0444;
+const uintptr_t R_LIVETRACK_ADDRESS = 0x1818B3704;
+
+const uintptr_t OPP_FIELD_TYPE_ADDRESS = 0x1817BB884;
+const uintptr_t OPP_NUMBER_TYPE_ADDRESS = 0x1817BB144;
+const uintptr_t OPP_CUSTOM_NUMBER_ADDRESS = 0x1817BAF74;
+const uintptr_t OPP_AI_SKILL_ADDRESS = 0x1817BBDF4;
+const uintptr_t OPP_AI_RAIN_ADDRESS = 0x1817BC704;
+const uintptr_t OPP_AI_TRACTION_ADDRESS = 0x1817BC364;
+const uintptr_t OPP_AI_BREAKING_ADDRESS = 0x1817BC534;
+const uintptr_t OPP_AI_AGGRESSION_ADDRESS = 0x1817BBFC4;
+const uintptr_t OPP_AI_ERRORS_ADDRESS = 0x1817BCAA4;
+const uintptr_t OPP_PLR_GRID_POS_ADDRESS = 0x1817BD014;
+const uintptr_t OPP_PLR_CUSTOM_POS_ADDRESS = 0x1817BD3B4;
+
+const uintptr_t RUL_ENABLED_ADDRESS = 0x1818BE154;
+const uintptr_t RUL_TRACK_LIMITS_ADDRESS = 0x1818BD674;
+const uintptr_t RUL_DRIVE_THRU_ADDRESS = 0x1818BE324;
+const uintptr_t RUL_PIT_EXIT_ADDRESS = 0x1818BEA64;
+const uintptr_t RUL_FULL_YELLOW_ADDRESS = 0x1818BFE54;
+const uintptr_t RUL_SPEED_LIMIT_ADDRESS = 0x1818BDF84;
+const uintptr_t RUL_LIMITED_SETUP_ADDRESS = 0x1818C01F4;
+
 const uintptr_t CLASS_ROOT_ADDRESS = 0x1818C05C0;
 
 namespace P {
-    static const std::vector<std::string> Car = { "Vehicle", "Car" };
-    static const std::vector<std::string> Livery = { "Vehicle", "Livery" };
-    static const std::vector<std::string> Track = { "Track" };
-    static const std::vector<std::string> Practice = { "Practice", "Enabled" };
-    static const std::vector<std::string> Qualifying = { "Qualifying", "Enabled" };
-    static const std::vector<std::string> RaceDurType = { "Race", "DurationType" };
-    static const std::vector<std::string> RaceTime = { "Race", "Time" };
-    static const std::vector<std::string> RaceExtraLap = { "Race", "+1Lap" };
-    static const std::vector<std::string> RaceLaps = { "Race", "Laps" };
-    static const std::vector<std::string> RaceDateType = { "Race", "DateType" };
-    static const std::vector<std::string> RaceCustomDay = { "Race", "CustomDay" };
-    static const std::vector<std::string> RaceCustomMonth = { "Race", "CustomMonth" };
-    static const std::vector<std::string> RaceCustomYear = { "Race", "CustomYear" };
-    static const std::vector<std::string> RaceStartTime = { "Race", "StartTime" };
-    static const std::vector<std::string> RaceTimeProg = { "Race", "TimeProgression" };
+    static const std::vector<std::string> Car =                     { "Vehicle", "Car" };
+    static const std::vector<std::string> Livery =                  { "Vehicle", "Livery" };
+
+    static const std::vector<std::string> Track =                   { "Track" };
+
+    static const std::vector<std::string> PracticeEnabled =         { "Practice", "Enabled" };
+    static const std::vector<std::string> PracticeMinutes =         { "Practice", "Minutes" };
+    static const std::vector<std::string> PracticeStartTime =       { "Practice", "StartTime" };
+    static const std::vector<std::string> PracticeTimeProg =        { "Practice", "TimeProgression" };
+    static const std::vector<std::string> PracticeWeatherSlots =    { "Practice", "WeatherSlots" };
+    static const std::vector<std::string> PracticeWeatherSlot1 =    { "Practice", "WeatherSlot1" };
+    static const std::vector<std::string> PracticeWeatherSlot2 =    { "Practice", "WeatherSlot2" };
+    static const std::vector<std::string> PracticeWeatherSlot3 =    { "Practice", "WeatherSlot3" };
+    static const std::vector<std::string> PracticeWeatherSlot4 =    { "Practice", "WeatherSlot4" };
+    static const std::vector<std::string> PracticeWeatherProg =     { "Practice", "WeatherProgression" };
+    static const std::vector<std::string> PracticeLivetrack =       { "Practice", "Livetrack" };
+
+    static const std::vector<std::string> QualiEnabled =            { "Qualifying", "Enabled" };
+    static const std::vector<std::string> QualiMinutes =            { "Qualifying", "Minutes" };
+    static const std::vector<std::string> QualiPrivateSession =     { "Qualifying", "PrivateSession" };
+    static const std::vector<std::string> QualiStintLimit =         { "Qualifying", "StintLimit" };
+    static const std::vector<std::string> QualiLapsLimit =          { "Qualifying", "LapsLimit" };
+    static const std::vector<std::string> QualiStartTime =          { "Qualifying", "StartTime" };
+    static const std::vector<std::string> QualiTimeProg =           { "Qualifying", "TimeProgression" };
+    static const std::vector<std::string> QualiWeatherSlots =       { "Qualifying", "WeatherSlots" };
+    static const std::vector<std::string> QualiWeatherSlot1 =       { "Qualifying", "WeatherSlot1" };
+    static const std::vector<std::string> QualiWeatherSlot2 =       { "Qualifying", "WeatherSlot2" };
+    static const std::vector<std::string> QualiWeatherSlot3 =       { "Qualifying", "WeatherSlot3" };
+    static const std::vector<std::string> QualiWeatherSlot4 =       { "Qualifying", "WeatherSlot4" };
+    static const std::vector<std::string> QualiWeatherProg =        { "Qualifying", "WeatherProgression" };
+    static const std::vector<std::string> QualiLivetrack =          { "Qualifying", "Livetrack" };
+
+    static const std::vector<std::string> RaceDurType =             { "Race", "DurationType" };
+    static const std::vector<std::string> RaceMinutes =             { "Race", "Minutes" };
+    static const std::vector<std::string> RaceExtraLap =            { "Race", "+1Lap" };
+    static const std::vector<std::string> RaceLaps =                { "Race", "Laps" };
+    static const std::vector<std::string> RaceDateType =            { "Race", "DateType" };
+    static const std::vector<std::string> RaceCustomDay =           { "Race", "CustomDay" };
+    static const std::vector<std::string> RaceCustomMonth =         { "Race", "CustomMonth" };
+    static const std::vector<std::string> RaceCustomYear =          { "Race", "CustomYear" };
+    static const std::vector<std::string> RaceStartTime =           { "Race", "StartTime" };
+    static const std::vector<std::string> RaceTimeProg =            { "Race", "TimeProgression" };
+    static const std::vector<std::string> RaceWeatherSlots =        { "Race", "WeatherSlots" };
+    static const std::vector<std::string> RaceWeatherSlot1 =        { "Race", "WeatherSlot1" };
+    static const std::vector<std::string> RaceWeatherSlot2 =        { "Race", "WeatherSlot2" };
+    static const std::vector<std::string> RaceWeatherSlot3 =        { "Race", "WeatherSlot3" };
+    static const std::vector<std::string> RaceWeatherSlot4 =        { "Race", "WeatherSlot4" };
+    static const std::vector<std::string> RaceWeatherProg =         { "Race", "WeatherProgression" };
+    static const std::vector<std::string> RaceStartType =           { "Race", "StartType" };
+    static const std::vector<std::string> RaceFormationLap =        { "Race", "FormationLap" };
+    static const std::vector<std::string> RaceAllowRefueling =      { "Race", "AllowRefueling" };
+    static const std::vector<std::string> RaceMandatoryPitStop =    { "Race", "MandatoryPitStop" };
+    static const std::vector<std::string> RaceMandatoryTyres =      { "Race", "MandatoryTyres" };
+    static const std::vector<std::string> RaceScheduledFCY =        { "Race", "ScheduledFCY" };
+    static const std::vector<std::string> RaceLivetrack =           { "Race", "Livetrack" };
+
+    static const std::vector<std::string> OppFieldType =            { "Opponents", "FieldType" };
+    static const std::vector<std::string> OppNumberType =           { "Opponents", "NumberType" };
+    static const std::vector<std::string> OppCustomNumber =         { "Opponents", "CustomNumber" };
+    static const std::vector<std::string> OppAiSkill =              { "Opponents", "AiSkill" };
+    static const std::vector<std::string> OppAiRainAbility =        { "Opponents", "AiRainAbility" };
+    static const std::vector<std::string> OppAiTraction =           { "Opponents", "AiTraction" };
+    static const std::vector<std::string> OppAiBreaking =           { "Opponents", "AiBreaking" };
+    static const std::vector<std::string> OppAiAggressiveness =     { "Opponents", "AiAggressiveness" };
+    static const std::vector<std::string> OppAiErrorMultiplier =    { "Opponents", "AiErrorMultiplier" };
+    static const std::vector<std::string> OppPlayerGridPosition =   { "Opponents", "PlayerGridPosition" };
+    static const std::vector<std::string> OppCustomGridPosition =   { "Opponents", "CustomGridPosition" };
+
+    static const std::vector<std::string> RulEnabled =              { "Rules&Penalties", "Enabled" };
+    static const std::vector<std::string> RulWarningTrackLimits =   { "Rules&Penalties", "WarningTrackLimits" };
+    static const std::vector<std::string> RulDriveThroughPenaltiy = { "Rules&Penalties", "DriveThroughPenaltiy" };
+    static const std::vector<std::string> RulPitExitPenaltiy =      { "Rules&Penalties", "PitExitPenaltiy" };
+    static const std::vector<std::string> RulFullCourseYellow =     { "Rules&Penalties", "FullCourseYellow" };
+    static const std::vector<std::string> RulPitSpeedLimit =        { "Rules&Penalties", "PitSpeedLimit" };
+    static const std::vector<std::string> RulLimitedSetup =         { "Rules&Penalties", "LimitedSetup" };
 }
 
 static const IntSetting SETTINGS[] = {
-    { &P::Car,              CAR_ADDRESS },
-    { &P::Livery,           LIVERY_ADDRESS },
-    { &P::Track,            TRACK_ADDRESS },
-    { &P::Practice,         PRACTICE_ADDRESS },
-    { &P::Qualifying,       QUALIFYING_ADDRESS },
-    { &P::RaceDurType,      DURATION_TYPE_ADDRESS },
-    { &P::RaceTime,         TIME_ADDRESS },
-    { &P::RaceExtraLap,     EXTRA_LAP_ADDRESS },
-    { &P::RaceLaps,         LAPS_ADDRESS },
-    { &P::RaceDateType,     DATE_TYPE_ADDRESS },
-    { &P::RaceCustomDay,    CUSTOM_DAY_ADDRESS },
-    { &P::RaceCustomMonth,  CUSTOM_MONTH_ADDRESS },
-    { &P::RaceCustomYear,   CUSTOM_YEAR_ADDRESS },
-    { &P::RaceStartTime,    STARTTIME_ADDRESS },
-    { &P::RaceTimeProg,     TIME_PROG_ADDRESS },
+    { &P::Car,                  VEH_CAR_ADDRESS },
+    { &P::Livery,               VEH_LIVERY_ADDRESS },
+
+    { &P::Track,                TRACK_ADDRESS },
+
+    { &P::PracticeEnabled,      P_ENABLED_ADDRESS },
+    { &P::PracticeMinutes,      P_MINUTES_ADDRESS },
+    { &P::PracticeStartTime,    P_STARTTIME_ADDRESS },
+    { &P::PracticeTimeProg,     P_TIME_PROG_ADDRESS },
+    { &P::PracticeWeatherSlots, P_WEATHER_SLOTS_ADDRESS },
+    { &P::PracticeWeatherSlot1, P_WEATHER_SLOT1_ADDRESS },
+    { &P::PracticeWeatherSlot2, P_WEATHER_SLOT2_ADDRESS },
+    { &P::PracticeWeatherSlot3, P_WEATHER_SLOT3_ADDRESS },
+    { &P::PracticeWeatherSlot4, P_WEATHER_SLOT4_ADDRESS },
+    { &P::PracticeWeatherProg,  P_WEATHER_PROG_ADDRESS },
+    { &P::PracticeLivetrack,    P_LIVETRACK_ADDRESS },
+
+    { &P::QualiEnabled,         Q_ENABLED_ADDRESS },
+    { &P::QualiMinutes,         Q_MINUTES_ADDRESS },
+    { &P::QualiPrivateSession,  Q_PRIVAT_SESSION_ADDRESS },
+    { &P::QualiStintLimit,      Q_STINT_LIMIT_ADDRESS },
+    { &P::QualiLapsLimit,       Q_LAPS_LIMIT_ADDRESS },
+    { &P::QualiStartTime,       Q_STARTTIME_ADDRESS },
+    { &P::QualiTimeProg,        Q_TIME_PROG_ADDRESS },
+    { &P::QualiWeatherSlots,    Q_WEATHER_SLOTS_ADDRESS },
+    { &P::QualiWeatherSlot1,    Q_WEATHER_SLOT1_ADDRESS },
+    { &P::QualiWeatherSlot2,    Q_WEATHER_SLOT2_ADDRESS },
+    { &P::QualiWeatherSlot3,    Q_WEATHER_SLOT3_ADDRESS },
+    { &P::QualiWeatherSlot4,    Q_WEATHER_SLOT4_ADDRESS },
+    { &P::QualiWeatherProg,     Q_WEATHER_PROG_ADDRESS },
+    { &P::QualiLivetrack,       Q_LIVETRACK_ADDRESS },
+
+    { &P::RaceDurType,          R_DURATION_TYPE_ADDRESS },
+    { &P::RaceMinutes,          R_MINUTES_ADDRESS },
+    { &P::RaceExtraLap,         R_EXTRA_LAP_ADDRESS },
+    { &P::RaceLaps,             R_LAPS_ADDRESS },
+    { &P::RaceDateType,         R_DATE_TYPE_ADDRESS },
+    { &P::RaceCustomDay,        R_CUSTOM_DAY_ADDRESS },
+    { &P::RaceCustomMonth,      R_CUSTOM_MONTH_ADDRESS },
+    { &P::RaceCustomYear,       R_CUSTOM_YEAR_ADDRESS },
+    { &P::RaceStartTime,        R_STARTTIME_ADDRESS },
+    { &P::RaceTimeProg,         R_TIME_PROG_ADDRESS },
+    { &P::RaceWeatherSlots,     R_WEATHER_SLOTS_ADDRESS },
+    { &P::RaceWeatherSlot1,     R_WEATHER_SLOT1_ADDRESS },
+    { &P::RaceWeatherSlot2,     R_WEATHER_SLOT2_ADDRESS },
+    { &P::RaceWeatherSlot3,     R_WEATHER_SLOT3_ADDRESS },
+    { &P::RaceWeatherSlot4,     R_WEATHER_SLOT4_ADDRESS },
+    { &P::RaceWeatherProg,      R_WEATHER_PROG_ADDRESS },
+    { &P::RaceStartType,        R_START_TYPE_ADDRESS },
+    { &P::RaceFormationLap,     R_FORMATION_LAP_ADDRESS },
+    { &P::RaceAllowRefueling,   R_ALLOW_REFUEL_ADDRESS },
+    { &P::RaceMandatoryPitStop, R_MANDATORY_STOP_ADDRESS },
+    { &P::RaceMandatoryTyres,   R_MANDATORY_TYRES_ADDRESS },
+    { &P::RaceScheduledFCY,     R_SCHEDULED_FCY_ADDRESS },
+    { &P::RaceLivetrack,        R_LIVETRACK_ADDRESS },
+
+    { &P::OppFieldType,             OPP_FIELD_TYPE_ADDRESS },
+    { &P::OppNumberType,            OPP_NUMBER_TYPE_ADDRESS },
+    { &P::OppCustomNumber,          OPP_CUSTOM_NUMBER_ADDRESS },
+    { &P::OppAiSkill,               OPP_AI_SKILL_ADDRESS },
+    { &P::OppAiRainAbility,         OPP_AI_RAIN_ADDRESS },
+    { &P::OppAiTraction,            OPP_AI_TRACTION_ADDRESS },
+    { &P::OppAiBreaking,            OPP_AI_BREAKING_ADDRESS },
+    { &P::OppAiAggressiveness,      OPP_AI_AGGRESSION_ADDRESS },
+    { &P::OppAiErrorMultiplier,     OPP_AI_ERRORS_ADDRESS },
+    { &P::OppPlayerGridPosition,    OPP_PLR_GRID_POS_ADDRESS },
+    { &P::OppCustomGridPosition,    OPP_PLR_CUSTOM_POS_ADDRESS },
+
+    { &P::RulEnabled,               RUL_ENABLED_ADDRESS },
+    { &P::RulWarningTrackLimits,    RUL_TRACK_LIMITS_ADDRESS },
+    { &P::RulDriveThroughPenaltiy,  RUL_DRIVE_THRU_ADDRESS },
+    { &P::RulPitExitPenaltiy,       RUL_PIT_EXIT_ADDRESS },
+    { &P::RulFullCourseYellow,      RUL_FULL_YELLOW_ADDRESS },
+    { &P::RulPitSpeedLimit,         RUL_SPEED_LIMIT_ADDRESS },
+    { &P::RulLimitedSetup,          RUL_LIMITED_SETUP_ADDRESS },
 };
 
 bool InstallCarHook() {
@@ -152,13 +333,13 @@ bool InstallCarHook() {
 bool ApplySettings(const std::string& json) {
     bool allOk = true;
     for (const auto& s : SETTINGS) {
-        if (USE_CAR_HOOK && s.absoluteAddress == CAR_ADDRESS) continue;
+        if (USE_CAR_HOOK && s.absoluteAddress == VEH_CAR_ADDRESS) continue;
 
         long long v = 0;
         if (!GetIntAtPath(json, *s.path, v)) continue;
 
         int target = (int)v;
-        if (s.absoluteAddress == LIVERY_ADDRESS) target += 1;
+        if (s.absoluteAddress == VEH_LIVERY_ADDRESS) target += 1;
 
         int before = -1, after = -1;
 

@@ -1,25 +1,89 @@
 {
 	"Vehicle": {
-		"Car": 428770333, // Vehicle ID (Dallara F301) -> Find it in ams2_vehicles.json
-		"Livery": 56 // Livery ID (Power on Motors) -> Find it in ams2_liveries.json
+		"Car": -950775810, // Vehicle ID (Caterham Academy) -> Find it in ams2_vehicles.json
+		"Livery": 70 // Livery ID (Spencer Owen #85) -> Find it in ams2_liveries.json
 	},
-	"Track": 2058166835, // Track ID (Guapore) -> Find it in ams2_tracks.json
+
+	"Track": 1910889511, // Track ID (Cadwell Park) -> Find it in ams2_tracks.json
+
 	"Practice": {
-		"Enabled": 0 // 0 or 1
+		"Enabled": 1, // 0=No, 1=Yes
+		"Minutes": 60, // 5-1440, 5
+		"StartTime": 10, // 0-23
+		"TimeProgression": 2, // 0=Off, 1=Realtime, 2=2X, 3=5X, 4=10X, 5=15X, 6=20X, 7=25X, 8=30X, 9=40X, 10=50X, 11=60X
+		"WeatherSlots": 1, // 0=RealWeather, 1=Slot1, 2=Slot1-2, 3=Slot1-3, 4=Slot1-4
+		"WeatherSlot1": 2, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherSlot2": 0, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherSlot3": 0, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherSlot4": 0, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherProgression": 2, // 12=SyncToRace, 1=Realtime, 2=2X, 3=5X, 4=10X, 5=15X, 6=20X, 7=25X, 8=30X, 9=40X, 10=50X, 11=60X
+		"Livetrack": 3 // 0=Default, 1=Wet, 2=Damp, 3=Green, 4=LightRubber, 5=MediumRubber, 6=HeavyRubber
 	},
+
 	"Qualifying": {
-		"Enabled": 0 // 0 or 1
-	},
-	"Race": {
-		"DurationType": 1, // 0=Time, 1=Laps
-		"Time": 90, // 5-1440, 5
-		"+1Lap": 1, // 0 or 1
-		"Laps": 111, // 1-999
-		"DateType": 2, // 0=Default, 1=Current, 2=Custom
-		"CustomDay": 13, // 1-31
-		"CustomMonth": 6, // 1-12
-		"CustomYear": 1995, // 1970-2099
+		"Enabled": 1, // 0=No, 1=Yes
+		"Minutes": 30, // 5-1440, 5
+		"PrivateSession": 0, // 0=No, 1=Solo, 2=Class
+		"StintLimit": 1, // 0-15
+		"LapsLimit": 3, // 0-15
 		"StartTime": 12, // 0-23
-		"TimeProgression": 3 // 0=Off, 1=Realtime, 2=2X, 3=5X, 4=10X, 5=15X, 6=20X, 7=25X, 8=30X, 9=40X, 10=50X, 11=60X
+		"TimeProgression": 2, // 0=Off, 1=Realtime, 2=2X, 3=5X, 4=10X, 5=15X, 6=20X, 7=25X, 8=30X, 9=40X, 10=50X, 11=60X
+		"WeatherSlots": 3, // 0=RealWeather, 1=Slot1, 2=Slot1-2, 3=Slot1-3, 4=Slot1-4
+		"WeatherSlot1": 17, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherSlot2": 17, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherSlot3": 17, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherSlot4": 0, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherProgression": 12, // 12=SyncToRace, 1=Realtime, 2=2X, 3=5X, 4=10X, 5=15X, 6=20X, 7=25X, 8=30X, 9=40X, 10=50X, 11=60X
+		"Livetrack": 4 // 0=Default, 1=Wet, 2=Damp, 3=Green, 4=LightRubber, 5=MediumRubber, 6=HeavyRubber
+	},
+
+	"Race": {
+		"DurationType": 1, // 0=Minutes, 1=Laps
+		"Minutes": 20, // 5-1440, 5 (Requires DurationType=0)
+		"+1Lap": 0, // 0=No, 1=Yes (Requires DurationType=0)
+		"Laps": 12, // 1-999 (Requires DurationType=1)
+		"DateType": 0, // 0=Default, 1=Current, 2=Custom
+		"CustomDay": 13, // 1-31 (Requires DateType=2)
+		"CustomMonth": 6, // 1-12 (Requires DateType=2)
+		"CustomYear": 1995, // 1970-2099 (Requires DateType=2)
+		"StartTime": 7, // 0-23
+		"TimeProgression": 3, // 0=Off, 1=Realtime, 2=2X, 3=5X, 4=10X, 5=15X, 6=20X, 7=25X, 8=30X, 9=40X, 10=50X, 11=60X
+		"WeatherSlots": 2, // 0=RealWeather, 1=Slot1, 2=Slot1-2, 3=Slot1-3, 4=Slot1-4
+		"WeatherSlot1": 17, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherSlot2": 17, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherSlot3": 0, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherSlot4": 0, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherProgression": 12, // 12=SyncToRace, 1=Realtime, 2=2X, 3=5X, 4=10X, 5=15X, 6=20X, 7=25X, 8=30X, 9=40X, 10=50X, 11=60X
+		"StartType": 1, // 0=Standing, 1=Rolling
+		"FormationLap": 1, // 0=No, 1=Yes (Requires StartType=1)
+		"AllowRefueling": 1, // 0=No, 1=Yes
+		"MandatoryPitStop": 1, // 0=No, 1=Yes
+		"MandatoryTyres": 2, // 0-4 (Requires MandatoryPitStop=1)
+		"ScheduledFCY": 0, // 0=Off, 1=After 25% race length, 2=After 50%, 3=After 75%, 4=Randomly
+		"Livetrack": 5 // 0=Default, 1=Wet, 2=Damp, 3=Green, 4=LightRubber, 5=MediumRubber, 6=HeavyRubber
+	},
+
+	"Opponents": {
+		"FieldType": 1, // 0=SameVehicle, 1=SameClass
+		"NumberType": 1, // 0=MaxAvailable, 1=Custom
+		"CustomNumber": 13, // 0-X (Requires NumberType=1. X is amount of liveries)
+		"AiSkill": 100, // 70-120
+		"AiRainAbility": 100, // 50-120
+		"AiTraction": 100, // 50-150
+		"AiBreaking": 100, // 50-150
+		"AiAggressiveness": 60, // 40=Low, 60=Medium, 80=High, 100=Max
+		"AiErrorMultiplier": 6, // 0=Off, 1=0.5X, 2=1X (Standard), 3=2X, 4=3X, 5=4X, 6=5X
+		"PlayerGridPosition": 5, // 1=First, 2=Midfield, 3=Last, 4=Random, 5=Custom (Requires Qualifying -> Enabled=0)
+		"CustomGridPosition": 3 // 1-X (Requires PlayerGridPosition=5. X is amount of opponents + 1)
+	},
+
+	"Rules&Penalties": {
+		"Enabled": 1, // 0=No, 1=Yes
+		"WarningTrackLimits": 3, // 0-50 (Requires Enabled=1)
+		"DriveThroughPenaltiy": 1, // 0=No, 1=Yes (Requires Enabled=1)
+		"PitExitPenaltiy": 1, // 0=No, 1=Yes (Requires Enabled=1)
+		"FullCourseYellow": 0, // 0=No, 1=Yes (Requires Enabled=1)
+		"PitSpeedLimit": 60, // 40-240
+		"LimitedSetup": 0 // 0=No, 4=Parc Ferme
 	}
 }
