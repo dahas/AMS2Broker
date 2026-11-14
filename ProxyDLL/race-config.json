@@ -28,10 +28,10 @@
 		"LapsLimit": 3, // 0-15
 		"StartTime": 12, // 0-23
 		"TimeProgression": 2, // 0=Off, 1=Realtime, 2=2X, 3=5X, 4=10X, 5=15X, 6=20X, 7=25X, 8=30X, 9=40X, 10=50X, 11=60X
-		"WeatherSlots": 3, // 0=RealWeather, 1=Slot1, 2=Slot1-2, 3=Slot1-3, 4=Slot1-4
+		"WeatherSlots": 2, // 0=RealWeather, 1=Slot1, 2=Slot1-2, 3=Slot1-3, 4=Slot1-4
 		"WeatherSlot1": 17, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
 		"WeatherSlot2": 17, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
-		"WeatherSlot3": 17, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
+		"WeatherSlot3": 0, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
 		"WeatherSlot4": 0, // 17=Random, 0=Clear, 1=LightClouds, 2=MediumClouds, 3=HeavyClouds, 4=Overcast, 5=LightRain, 6=Rain, 7=Storm, 8=ThunderStorm, 12=Foggy, 13=FogRain, 14=HeavyFog, 15=HeavyFogRain, 16=Hazy
 		"WeatherProgression": 12, // 12=SyncToRace, 1=Realtime, 2=2X, 3=5X, 4=10X, 5=15X, 6=20X, 7=25X, 8=30X, 9=40X, 10=50X, 11=60X
 		"Livetrack": 4 // 0=Default, 1=Wet, 2=Damp, 3=Green, 4=LightRubber, 5=MediumRubber, 6=HeavyRubber
@@ -66,7 +66,7 @@
 	"Opponents": {
 		"FieldType": 1, // 0=SameVehicle, 1=SameClass
 		"NumberType": 1, // 0=MaxAvailable, 1=Custom
-		"CustomNumber": 13, // 0-X (Requires NumberType=1. X is amount of liveries)
+		"CustomNumber": 13, // 0-X (Requires NumberType=1. X = liveries)
 		"AiSkill": 100, // 70-120
 		"AiRainAbility": 100, // 50-120
 		"AiTraction": 100, // 50-150
@@ -74,7 +74,7 @@
 		"AiAggressiveness": 60, // 40=Low, 60=Medium, 80=High, 100=Max
 		"AiErrorMultiplier": 6, // 0=Off, 1=0.5X, 2=1X (Standard), 3=2X, 4=3X, 5=4X, 6=5X
 		"PlayerGridPosition": 5, // 1=First, 2=Midfield, 3=Last, 4=Random, 5=Custom (Requires Qualifying -> Enabled=0)
-		"CustomGridPosition": 3 // 1-X (Requires PlayerGridPosition=5. X is amount of opponents + 1)
+		"CustomGridPosition": 3 // 1-X (Requires PlayerGridPosition=5. X = opponents + 1)
 	},
 
 	"Rules&Penalties": {

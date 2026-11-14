@@ -2,9 +2,12 @@
 #include <tlhelp32.h>
 #include <iostream>
 #include <string>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 static void PrintError(const char* step) {
-    std::cerr << "  [" << step << "] Windows-Fehlercode: " << GetLastError() << std::endl;
+    std::cerr << "  [" << step << "] Windows-Error-Code: " << GetLastError() << std::endl;
 }
 
 DWORD GetProcessIdByName(const wchar_t* processName) {
@@ -66,7 +69,7 @@ bool IsProcessAms2(DWORD pid) {
     std::wstring p(path);
     size_t pos = p.find_last_of(L"\\/");
     std::wstring file = (pos == std::wstring::npos) ? p : p.substr(pos + 1);
-    return _wcsicmp(file.c_str(), L"AMS2AVX.exe") == 0;
+    return _wcsicmp(file.c_str(), L"AMS2AVX.exe") == 0 || _wcsicmp(file.c_str(), L"AMS2.exe") == 0;
 }
 
 DWORD GetPidFromGameWindow() {
@@ -128,7 +131,7 @@ int InjectDLL(DWORD processId, const char* dllPath) {
     DWORD waitResult = WaitForSingleObject(hThread, 15000);
 
     if (waitResult != WAIT_OBJECT_0) {
-        std::cerr << "  [WaitForSingleObject] Timeout - LoadLibrary hängt noch." << std::endl;
+        std::cerr << "  [WaitForSingleObject] Timeout - LoadLibrary still stuck." << std::endl;
         CloseHandle(hThread);
         CloseHandle(hProcess);
         return 2;
@@ -142,25 +145,74 @@ int InjectDLL(DWORD processId, const char* dllPath) {
     CloseHandle(hProcess);
 
     if (exitCode == 0) {
-        std::cerr << "  [LoadLibrary] lieferte 0 - DLL wurde nicht geladen "
-            "(Abhängigkeit fehlt? DllMain FALSE? Architektur?)." << std::endl;
+        std::cerr << "  [LoadLibrary] 0 - DLL not loaded "
+            "(Missing dependency? DllMain FALSE? Architecture?)." << std::endl;
         return 0;
     }
 
     return 1;
 }
 
-int main() {
+std::wstring GetSteamInstallPath() {
+    HKEY hKey;
+    wchar_t path[MAX_PATH] = { 0 };
+    DWORD bufferSize = sizeof(path);
+
+    // 64-Bit Registry-Pfad für Steam
+    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\WOW6432Node\\Valve\\Steam", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        if (RegQueryValueExW(hKey, L"InstallPath", NULL, NULL, (LPBYTE)path, &bufferSize) == ERROR_SUCCESS) {
+            RegCloseKey(hKey);
+            return std::wstring(path);
+        }
+        RegCloseKey(hKey);
+    }
+    return L"";
+}
+
+std::wstring GetDefaultAms2Path() {
+    std::wstring steamPath = GetSteamInstallPath();
+    if (!steamPath.empty()) {
+        std::wstring ams2Path = steamPath + L"\\steamapps\\common\\Automobilista 2\\AMS2AVX.exe";
+        if (fs::exists(ams2Path)) {
+            return ams2Path;
+        }
+        std::wstring normalPath = steamPath + L"\\steamapps\\common\\Automobilista 2\\AMS2.exe";
+        if (fs::exists(normalPath)) {
+            return normalPath;
+        }
+    }
+    return L"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Automobilista 2\\AMS2AVX.exe";
+}
+
+int main(int argc, char* argv[]) {
     std::cout << "Launching AMS2 ..." << std::endl;
 
-    wchar_t appPath[] = L"E:\\Steam\\steamapps\\common\\Automobilista 2\\AMS2AVX.exe";
-    wchar_t workingDir[] = L"E:\\Steam\\steamapps\\common\\Automobilista 2";
+    std::wstring appPath;
+
+    if (argc > 1) {
+        std::string arg(argv[1]);
+        appPath = std::wstring(arg.begin(), arg.end());
+    }
+    else {
+        appPath = GetDefaultAms2Path();
+    }
+
+    if (!fs::exists(appPath)) {
+        std::cerr << "Error: EXE not found at this location:\n"
+            << std::string(appPath.begin(), appPath.end()) << std::endl;
+        Sleep(4000);
+        return 1;
+    }
+
+    std::wstring workingDirW = fs::path(appPath).parent_path().wstring();
 
     STARTUPINFOW si = { sizeof(si) };
-    PROCESS_INFORMATION pi = {};
 
-    if (!CreateProcessW(appPath, NULL, NULL, NULL, FALSE, 0, NULL, workingDir, &si, &pi)) {
-        std::cerr << "Fehler beim Starten von AMS2AVX.exe! Windows-Fehlercode: "
+    PROCESS_INFORMATION pi = {};
+    std::wstring mutableAppPath = appPath;
+
+    if (!CreateProcessW(mutableAppPath.data(), NULL, NULL, NULL, FALSE, 0, NULL, workingDirW.c_str(), &si, &pi)) {
+        std::cerr << "Error launching AMS2! Windows-Error-Code: "
             << GetLastError() << std::endl;
         Sleep(3000);
         return 1;
@@ -169,7 +221,7 @@ int main() {
     CloseHandle(pi.hThread);
 
     std::cout << "Process started (Start-PID: " << pi.dwProcessId
-        << "). Waiting on Render-Window ..." << std::endl;
+        << "). Waiting on GameEngine ..." << std::endl;
 
     DWORD targetPid = 0;
     DWORD lastPid = 0;
@@ -198,7 +250,10 @@ int main() {
     if (targetPid == 0) {
         targetPid = GetProcessIdByName(L"AMS2AVX.exe");
         if (targetPid == 0) {
-            std::cerr << "Spielprozess nicht gefunden. Abbruch." << std::endl;
+            targetPid = GetProcessIdByName(L"AMS2.exe");
+        }
+        if (targetPid == 0) {
+            std::cerr << "Game process not found. Abort." << std::endl;
             Sleep(3000);
             return 1;
         }
@@ -213,8 +268,15 @@ int main() {
 
     std::cout << "Injecting DLL ..." << std::endl;
 
-    const char* dllPath = "D:\\DotNet\\ProxyDLL\\ProxyDLL.dll";
-    const wchar_t* dllName = L"ProxyDLL.dll";
+    wchar_t exePathW[MAX_PATH];
+    GetModuleFileNameW(NULL, exePathW, MAX_PATH);
+    fs::path launcherDir = fs::path(exePathW).parent_path();
+    fs::path dllPathFs = launcherDir.parent_path() / L"ProxyDLL" / L"ProxyDll.dll";
+
+    std::string dllPathStr = dllPathFs.string();
+    const char* dllPath = dllPathStr.c_str();
+
+    const wchar_t* dllName = L"ProxyDll.dll";
 
     bool success = false;
     const int maxRetries = 5;
@@ -227,7 +289,7 @@ int main() {
         }
 
         if (!IsProcessAms2(targetPid)) {
-            std::cerr << "Zielprozess existiert nicht mehr. Abbruch." << std::endl;
+            std::cerr << "Target process not found. Abort." << std::endl;
             break;
         }
 
@@ -237,23 +299,23 @@ int main() {
             Sleep(200);
             success = IsModuleLoaded(targetPid, dllName);
             if (!success) {
-                std::cerr << "  LoadLibrary meldete Erfolg, Modul aber nicht gelistet." << std::endl;
+                std::cerr << "  LoadLibrary successfull. Module not listet." << std::endl;
             }
         }
         else if (result == 2) {
-            std::cerr << "Abbruch: LoadLibrary-Thread hängt. Kein Retry." << std::endl;
+            std::cerr << "Abort: LoadLibrary-Thread stuck. No retry." << std::endl;
             break;
         }
 
         if (!success && attempt < maxRetries) {
-            std::cout << "Versuch " << attempt << " fehlgeschlagen, neuer Versuch in 600 ms..."
+            std::cout << "Attempt " << attempt << " failed. Next attempt in 600 ms..."
                 << std::endl;
             Sleep(600);
         }
     }
 
     if (success) {
-        std::cout << "Successfully initialized!" << std::endl;
+        std::cout << "Success!" << std::endl;
     }
     else {
         std::cerr << "Injection failed!" << std::endl;
