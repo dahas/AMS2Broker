@@ -89,6 +89,45 @@ bool GetIntAtPath(const std::string& json,
     }
 }
 
+std::string ApplyPlaceholders(std::string jsonBody, const std::string& headers) {
+    std::string lowerHeaders = headers;
+    for (auto& c : lowerHeaders) c = (char)tolower((unsigned char)c);
+
+    size_t pos = lowerHeaders.find("x-placeholders:");
+    if (pos == std::string::npos) return jsonBody;
+
+    size_t valStart = pos + 15;
+    size_t valEnd = lowerHeaders.find("\r\n", valStart);
+    if (valEnd == std::string::npos) valEnd = lowerHeaders.size();
+
+    std::string placeholderHeader = headers.substr(valStart, valEnd - valStart);
+
+    while (!placeholderHeader.empty() && isspace((unsigned char)placeholderHeader.front())) placeholderHeader.erase(0, 1);
+    while (!placeholderHeader.empty() && isspace((unsigned char)placeholderHeader.back())) placeholderHeader.pop_back();
+
+    size_t start = 0;
+    while (start < placeholderHeader.size()) {
+        size_t pipe = placeholderHeader.find('|', start);
+        if (pipe == std::string::npos) pipe = placeholderHeader.size();
+
+        std::string pair = placeholderHeader.substr(start, pipe - start);
+        size_t eq = pair.find('=');
+        if (eq != std::string::npos) {
+            std::string key = pair.substr(0, eq);
+            std::string val = pair.substr(eq + 1);
+
+            size_t idx = 0;
+            while ((idx = jsonBody.find(key, idx)) != std::string::npos) {
+                jsonBody.replace(idx, key.length(), val);
+                idx += val.length();
+            }
+        }
+        start = pipe + 1;
+    }
+
+    return jsonBody;
+}
+
 bool ParseClassStates(const std::string& json, std::map<int, int>& out) {
     size_t classPos = json.find("\"ClassStates\"");
     if (classPos == std::string::npos) return true;

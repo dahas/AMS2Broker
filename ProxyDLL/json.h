@@ -14,3 +14,5 @@ bool GetIntAtPath(const std::string& json,
     long long& out);
 
 bool ParseClassStates(const std::string& json, std::map<int, int>& out);
+
+std::string ApplyPlaceholders(std::string jsonBody, const std::string& headers);

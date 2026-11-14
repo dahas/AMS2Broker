@@ -487,7 +487,9 @@ void HandleClient(SOCKET clientSocket) {
             SendResponse(clientSocket, "400 Bad Request", "EMPTY BODY");
         }
         else {
-            std::string json = StripComments(body);
+            std::string processedBody = ApplyPlaceholders(body, headers);
+            std::string json = StripComments(processedBody);
+
             bool setOk = ApplySettings(json);
             bool carOk = ApplyCarHook(json);
             bool classesOk = ApplyClassStates(json);
