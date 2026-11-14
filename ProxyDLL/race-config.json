@@ -7,7 +7,7 @@
 	"Track": 1910889511, // Track ID (Cadwell Park) -> Find it in ams2_tracks.json
 
 	"Practice": {
-		"Enabled": 1, // 0=No, 1=Yes
+		"Enabled": 0, // 0=No, 1=Yes
 		"Minutes": 60, // 5-1440, 5
 		"StartTime": 10, // 0-23
 		"TimeProgression": 2, // 0=Off, 1=Realtime, 2=2X, 3=5X, 4=10X, 5=15X, 6=20X, 7=25X, 8=30X, 9=40X, 10=50X, 11=60X
@@ -41,7 +41,7 @@
 		"DurationType": 1, // 0=Minutes, 1=Laps
 		"Minutes": 20, // 5-1440, 5 (Requires DurationType=0)
 		"+1Lap": 0, // 0=No, 1=Yes (Requires DurationType=0)
-		"Laps": 12, // 1-999 (Requires DurationType=1)
+		"Laps": 44, // 1-999 (Requires DurationType=1)
 		"DateType": 0, // 0=Default, 1=Current, 2=Custom
 		"CustomDay": 13, // 1-31 (Requires DateType=2)
 		"CustomMonth": 6, // 1-12 (Requires DateType=2)

@@ -500,6 +500,19 @@ void HandleClient(SOCKET clientSocket) {
             else SendResponse(clientSocket, "200 OK", "OK");
         }
     }
+    else if (headers.find("GET /ready") != std::string::npos) {
+        int carValue = 0;
+        uintptr_t rva = RvaFromAbsolute(VEH_CAR_ADDRESS);
+        bool readOk = SafeRead(At(rva), &carValue, sizeof(carValue));
+
+        // Wenn die Adresse lesbar ist und einen Wert ungleich 0 hat, ist das Hauptmenü da
+        if (readOk && carValue != 0) {
+            SendResponse(clientSocket, "200 OK", "READY");
+        }
+        else {
+            SendResponse(clientSocket, "503 Service Unavailable", "NOT READY");
+        }
+    }
     else {
         SendResponse(clientSocket, "200 OK", "PONG");
     }
