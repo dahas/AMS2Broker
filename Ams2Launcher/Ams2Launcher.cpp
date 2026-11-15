@@ -8,9 +8,11 @@
 #include <atomic>
 #include <fstream>
 #include <sstream>
+#include <bcrypt.h>
 #include "config.h"
 
 #pragma comment(lib, "wininet.lib")
+#pragma comment(lib, "bcrypt.lib")
 
 namespace fs = std::filesystem;
 
@@ -20,6 +22,64 @@ std::string g_DllPathStr = "";
 
 std::wstring g_ConfigPath = L"";
 std::string g_Placeholders = "#ST#=22|#LAPS#=44";
+
+std::string g_AuthToken = "";
+HANDLE g_hAuthTokenMapping = NULL;
+
+const wchar_t* kSharedMemName = L"Local\\AMS2Launcher_AuthToken";
+
+std::string GenerateRandomToken()
+{
+    const size_t tokenBytes = 32;
+    unsigned char buffer[tokenBytes] = {};
+
+    NTSTATUS status = BCryptGenRandom(
+        NULL,
+        buffer,
+        static_cast<ULONG>(tokenBytes),
+        BCRYPT_USE_SYSTEM_PREFERRED_RNG
+    );
+
+    if (status != 0) {
+        std::cerr << "BCryptGenRandom failed: " << status << std::endl;
+        return "";
+    }
+
+    static const char hex[] = "0123456789abcdef";
+    std::string token;
+    token.reserve(tokenBytes * 2);
+    for (size_t i = 0; i < tokenBytes; ++i) {
+        token.push_back(hex[(buffer[i] >> 4) & 0x0F]);
+        token.push_back(hex[buffer[i] & 0x0F]);
+    }
+    return token;
+}
+
+bool WriteTokenToSharedMemory(const std::string& token)
+{
+    if (g_hAuthTokenMapping) {
+        CloseHandle(g_hAuthTokenMapping);
+        g_hAuthTokenMapping = NULL;
+    }
+
+    DWORD size = static_cast<DWORD>(token.size() + 1);
+
+    g_hAuthTokenMapping = CreateFileMappingW(
+        INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, size, kSharedMemName);
+    if (!g_hAuthTokenMapping) return false;
+
+    void* pView = MapViewOfFile(g_hAuthTokenMapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
+    if (!pView) {
+        CloseHandle(g_hAuthTokenMapping);
+        g_hAuthTokenMapping = NULL;
+        return false;
+    }
+
+    memcpy(pView, token.c_str(), token.size());
+    static_cast<char*>(pView)[token.size()] = '\0';
+    UnmapViewOfFile(pView);
+    return true;
+}
 
 static void PrintError(const char* step) {
     std::cerr << "  [" << step << "] Windows-Error-Code: " << GetLastError() << std::endl;
@@ -262,9 +322,15 @@ void TriggerRestApiRequest() {
     HINTERNET hRequest = HttpOpenRequestA(hConnect, "POST", "/patch", NULL, NULL, NULL, 0, 0);
     if (!hRequest) { std::cerr << "> HttpOpenRequest failed." << std::endl; InternetCloseHandle(hConnect); InternetCloseHandle(hSession); return; }
 
-    std::string headerStr = "Content-Type: application/json\r\nX-Placeholders: " + g_Placeholders + "\r\n";
+    std::string headerStr =
+        "Content-Type: application/json\r\n"
+        "X-Auth-Token: " + g_AuthToken + "\r\n"
+        "X-Placeholders: " + g_Placeholders + "\r\n";
 
-    BOOL sent = HttpSendRequestA(hRequest, headerStr.c_str(), (DWORD)headerStr.size(), (LPVOID)fileContent.c_str(), (DWORD)fileContent.size());
+    BOOL sent = HttpSendRequestA(
+        hRequest, headerStr.c_str(), (DWORD)headerStr.size(),
+        (LPVOID)fileContent.c_str(), (DWORD)fileContent.size());
+    
     if (sent) {
         std::cout << "> [Patching] Success! You can now start the session." << std::endl;
     }
@@ -294,7 +360,8 @@ bool CheckDllReady() {
         return false;
     }
 
-    BOOL sent = HttpSendRequestA(hRequest, NULL, 0, NULL, 0);
+    std::string headerStr = "X-Auth-Token: " + g_AuthToken + "\r\n";
+    BOOL sent = HttpSendRequestA(hRequest, headerStr.c_str(), (DWORD)headerStr.size(), NULL, 0);
     DWORD statusCode = 0;
     DWORD statusSize = sizeof(statusCode);
     if (sent) {
@@ -385,6 +452,18 @@ int main(int argc, char* argv[]) {
     SetupLauncherWindow();
 
     LoadConfiguration();
+
+    g_AuthToken = GenerateRandomToken();
+    if (g_AuthToken.empty()) {
+        std::cerr << "Fatal: Could not generate secure auth token. Abort." << std::endl;
+        Sleep(4000);
+        return 1;
+    }
+    if (!WriteTokenToSharedMemory(g_AuthToken)) {
+        std::cerr << "Warning: Shared memory for auth token failed." << std::endl;
+        Sleep(4000);
+        return 1;
+    }
 
     wchar_t exePathW[MAX_PATH];
     GetModuleFileNameW(NULL, exePathW, MAX_PATH);
@@ -589,5 +668,11 @@ int main(int argc, char* argv[]) {
 
     g_Running = false;
     std::cout << "AMS2 closed. Exiting launcher." << std::endl;
+
+    if (g_hAuthTokenMapping) {
+        CloseHandle(g_hAuthTokenMapping);
+        g_hAuthTokenMapping = NULL;
+    }
+
     return 0;
 }

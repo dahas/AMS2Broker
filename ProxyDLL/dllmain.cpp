@@ -17,6 +17,104 @@
 
 const int SERVER_PORT = GetServerPort();
 
+static std::string ReadAuthTokenFromSharedMemory()
+{
+    const wchar_t* kSharedMemName = L"Local\\AMS2Launcher_AuthToken";
+
+    HANDLE hMap = OpenFileMappingW(FILE_MAP_READ, FALSE, kSharedMemName);
+    if (!hMap) return "";
+
+    void* pView = MapViewOfFile(hMap, FILE_MAP_READ, 0, 0, 0);
+    if (!pView) {
+        CloseHandle(hMap);
+        return "";
+    }
+
+    std::string token(static_cast<const char*>(pView));
+    UnmapViewOfFile(pView);
+    CloseHandle(hMap);
+    return token;
+}
+
+static std::string GetHeaderValue(const std::string& headers, const std::string& name)
+{
+    std::string lower = headers;
+    for (auto& c : lower) c = (char)tolower((unsigned char)c);
+
+    std::string needle = name;
+    for (auto& c : needle) c = (char)tolower((unsigned char)c);
+    needle += ":";
+
+    size_t pos = 0;
+    while ((pos = lower.find(needle, pos)) != std::string::npos) {
+        // Muss am Zeilenanfang stehen (nach \r\n oder ganz vorne)
+        if (pos == 0 || (pos >= 2 && lower.compare(pos - 2, 2, "\r\n") == 0)) {
+            size_t valueStart = pos + needle.size();
+            while (valueStart < headers.size() &&
+                (headers[valueStart] == ' ' || headers[valueStart] == '\t'))
+                ++valueStart;
+
+            size_t valueEnd = headers.find("\r\n", valueStart);
+            if (valueEnd == std::string::npos) valueEnd = headers.size();
+
+            // Trim trailing whitespace
+            while (valueEnd > valueStart &&
+                (headers[valueEnd - 1] == ' ' || headers[valueEnd - 1] == '\t'))
+                --valueEnd;
+
+            return headers.substr(valueStart, valueEnd - valueStart);
+        }
+        pos += needle.size();
+    }
+    return "";
+}
+
+static bool ConstantTimeEquals(const std::string& a, const std::string& b)
+{
+    if (a.size() != b.size()) return false;
+    unsigned char diff = 0;
+    for (size_t i = 0; i < a.size(); ++i) {
+        diff |= (unsigned char)(a[i] ^ b[i]);
+    }
+    return diff == 0;
+}
+
+static std::mutex g_tokenMutex;
+static std::string g_AuthTokenCache;
+static bool g_AuthTokenLoaded = false;
+
+static std::string GetAuthToken()
+{
+    std::lock_guard<std::mutex> lock(g_tokenMutex);
+    if (!g_AuthTokenLoaded) {
+        g_AuthTokenCache = ReadAuthTokenFromSharedMemory();
+        g_AuthTokenLoaded = true;
+        Log("[AUTH] Token geladen (%zu Zeichen).\n", g_AuthTokenCache.size());
+    }
+    return g_AuthTokenCache;
+}
+
+static bool CheckAuth(const std::string& headers)
+{
+    std::string expected = GetAuthToken();
+    if (expected.empty()) {
+        Log("[AUTH] No Token available - blocking all Requests.\n");
+        return false;
+    }
+
+    std::string got = GetHeaderValue(headers, "X-Auth-Token");
+    if (got.empty()) {
+        Log("[AUTH] Request missing X-Auth-Token.\n");
+        return false;
+    }
+
+    bool ok = ConstantTimeEquals(got, expected);
+    if (!ok) {
+        Log("[AUTH] Token-Mismatch.\n");
+    }
+    return ok;
+}
+
 const bool USE_CAR_HOOK = false;
 const uintptr_t CAR_HOOK_RVA = 0x3FD3D1;
 
@@ -481,6 +579,12 @@ void HandleClient(SOCKET clientSocket) {
         return;
     }
 
+    if (!CheckAuth(headers)) {
+        SendResponse(clientSocket, "401 Unauthorized", "UNAUTHORIZED");
+        closesocket(clientSocket);
+        return;
+    }
+
     if (headers.find("POST /patch") != std::string::npos) {
         if (body.empty()) {
             Log("[HTTP] Leerer Body.\n");
@@ -505,16 +609,12 @@ void HandleClient(SOCKET clientSocket) {
         uintptr_t rva = RvaFromAbsolute(VEH_CAR_ADDRESS);
         bool readOk = SafeRead(At(rva), &carValue, sizeof(carValue));
 
-        // Wenn die Adresse lesbar ist und einen Wert ungleich 0 hat, ist das Hauptmenü da
         if (readOk && carValue != 0) {
             SendResponse(clientSocket, "200 OK", "READY");
         }
         else {
             SendResponse(clientSocket, "503 Service Unavailable", "NOT READY");
         }
-    }
-    else {
-        SendResponse(clientSocket, "200 OK", "PONG");
     }
 
     closesocket(clientSocket);
@@ -541,8 +641,6 @@ void StartHttpServer() {
     }
 
     listen(serverSocket, SOMAXCONN);
-
-    InitLog();
 
     while (true) {
         SOCKET clientSocket = accept(serverSocket, NULL, NULL);
@@ -577,6 +675,7 @@ bool ValidateAddresses() {
 }
 
 DWORD WINAPI MainThread(LPVOID lpParam) {
+    InitLog();
     Sleep(2000);
     ValidateAddresses();
     StartHttpServer();
