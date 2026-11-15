@@ -49,6 +49,24 @@ uintptr_t RvaFromAbsolute(uintptr_t absoluteAddress) {
     return absoluteAddress - ORIGINAL_BASE;
 }
 
+int GetServerPort(int defaultPort) {
+    wchar_t dllPath[MAX_PATH];
+    HMODULE hModule = nullptr;
+    GetModuleHandleExW(
+        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCWSTR)&GetServerPort, &hModule);
+    GetModuleFileNameW(hModule, dllPath, MAX_PATH);
+
+    std::wstring path(dllPath);
+    path = path.substr(0, path.find_last_of(L"\\/") + 1);
+    path = path.substr(0, path.find_last_of(L"\\/", path.size() - 2) + 1);
+    path += L"config.ini";
+
+    UINT port = GetPrivateProfileIntW(L"server", L"port", defaultPort, path.c_str());
+    if (port == 0 || port > 65535) return defaultPort;
+    return static_cast<int>(port);
+}
+
 bool SafeRead(uintptr_t addr, void* out, size_t size) {
     __try {
         memcpy(out, (void*)addr, size);

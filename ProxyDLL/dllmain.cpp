@@ -15,7 +15,7 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-const int SERVER_PORT = 58888;
+const int SERVER_PORT = GetServerPort();
 
 const bool USE_CAR_HOOK = false;
 const uintptr_t CAR_HOOK_RVA = 0x3FD3D1;

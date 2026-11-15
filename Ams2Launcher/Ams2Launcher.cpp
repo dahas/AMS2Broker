@@ -8,6 +8,7 @@
 #include <atomic>
 #include <fstream>
 #include <sstream>
+#include "config.h"
 
 #pragma comment(lib, "wininet.lib")
 
@@ -255,7 +256,7 @@ void TriggerRestApiRequest() {
     HINTERNET hSession = InternetOpenA("AMS2Launcher/1.0", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hSession) { std::cerr << "> InternetOpen failed." << std::endl; return; }
 
-    HINTERNET hConnect = InternetConnectA(hSession, "127.0.0.1", 58888, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
+    HINTERNET hConnect = InternetConnectA(hSession, "127.0.0.1", g_ServerPort, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
     if (!hConnect) { std::cerr << "> InternetConnect failed." << std::endl; InternetCloseHandle(hSession); return; }
 
     HINTERNET hRequest = HttpOpenRequestA(hConnect, "POST", "/patch", NULL, NULL, NULL, 0, 0);
@@ -280,7 +281,7 @@ bool CheckDllReady() {
     HINTERNET hSession = InternetOpenA("AMS2Launcher/1.0", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hSession) return false;
 
-    HINTERNET hConnect = InternetConnectA(hSession, "127.0.0.1", 58888, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
+    HINTERNET hConnect = InternetConnectA(hSession, "127.0.0.1", g_ServerPort, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
     if (!hConnect) {
         InternetCloseHandle(hSession);
         return false;
@@ -320,9 +321,9 @@ void BringLauncherToFront() {
 
 void HotkeyListener() {
     std::cout << "\n[Keyboard Controls]" << std::endl;
-    std::cout << "  [P] -> Apply Patch" << std::endl;
-    std::cout << "  [L] -> Bring Launcher up front" << std::endl;
-    std::cout << "  [Q] -> Quit Game\n" << std::endl;
+    std::cout << "  [" << GetKeyName(g_HotkeyApply) << "] -> Apply Patch" << std::endl;
+    std::cout << "  [" << GetKeyName(g_HotkeyLauncher) << "] -> Bring Launcher up front" << std::endl;
+    std::cout << "  [" << GetKeyName(g_HotkeyQuit) << "] -> Quit Game\n" << std::endl;
 
     bool pPressed = false, qPressed = false;
 
@@ -332,7 +333,7 @@ void HotkeyListener() {
             SetWindowPos(hwndConsole, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
         }
 
-        if (GetAsyncKeyState('P') & 0x8000) {
+        if (GetAsyncKeyState(g_HotkeyApply) & 0x8000) {
             if (!pPressed) {
                 pPressed = true;
                 BringLauncherToFront();
@@ -343,12 +344,12 @@ void HotkeyListener() {
             pPressed = false;
         }
 
-        if (GetAsyncKeyState('L') & 0x8000) {
+        if (GetAsyncKeyState(g_HotkeyLauncher) & 0x8000) {
             BringLauncherToFront();
             Sleep(250);
         }
 
-        if (GetAsyncKeyState('Q') & 0x8000) {
+        if (GetAsyncKeyState(g_HotkeyQuit) & 0x8000) {
             if (!qPressed) {
                 qPressed = true;
                 BringLauncherToFront();
@@ -381,8 +382,9 @@ void HotkeyListener() {
 int main(int argc, char* argv[]) {
     SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
 
-    // Launcher-Größe anpassen und Always on Top setzen
     SetupLauncherWindow();
+
+    LoadConfiguration();
 
     wchar_t exePathW[MAX_PATH];
     GetModuleFileNameW(NULL, exePathW, MAX_PATH);
@@ -539,11 +541,11 @@ int main(int argc, char* argv[]) {
     std::cout << "\n-----------------------------------------------------" << std::endl;
     std::cout << "PLEASE READ:" << std::endl;
     std::cout << "Once you are in the main menu, go to the single race." << std::endl;
-    std::cout << "Then press 'P' on your keyboard to patch the settings." << std::endl;
+    std::cout << "Then press [" << GetKeyName(g_HotkeyApply) << "] on your keyboard to patch the settings." << std::endl;
     std::cout << "The patch will NOT be applied outside the single race.\n" << std::endl;
     std::cout << "Wait for the confirmation in the launcher. Don't expect" << std::endl;
-    std::cout << "the settings to be directly visible. They are applied in " << std::endl;
-    std::cout << "the background. You'll see it when you start the session." << std::endl;
+    std::cout << "the settings to be directly visible - they are applied in" << std::endl;
+    std::cout << "the background. You'll have it when you start the session." << std::endl;
     std::cout << "-----------------------------------------------------\n" << std::endl;
 
     std::cout << "Waiting for main menu ..." << std::endl;
@@ -568,6 +570,8 @@ int main(int argc, char* argv[]) {
         std::cout << "Game closed before reaching main menu. Exiting launcher." << std::endl;
         return 0;
     }
+
+    BringLauncherToFront();
 
     std::thread listener(HotkeyListener);
     listener.detach();
