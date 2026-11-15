@@ -10,6 +10,10 @@ const char* LOG_PATH = "C:\\Users\\Public\\ams2_broker.log";
 static std::mutex g_logMutex;
 static uintptr_t g_moduleBase = 0;
 
+std::mutex g_tokenMutex;
+std::string g_AuthTokenCache;
+bool g_AuthTokenLoaded = false;
+
 void InitLog() {
     std::lock_guard<std::mutex> lock(g_logMutex);
     FILE* f = nullptr;
@@ -105,4 +109,96 @@ bool PatchInt(uintptr_t address, int value, int* before, int* after) {
     if (before) *before = b;
     if (after) *after = a;
     return ok && a == value;
+}
+
+std::string ReadAuthTokenFromSharedMemory()
+{
+    const wchar_t* kSharedMemName = L"Local\\AMS2Launcher_AuthToken";
+
+    HANDLE hMap = OpenFileMappingW(FILE_MAP_READ, FALSE, kSharedMemName);
+    if (!hMap) return "";
+
+    void* pView = MapViewOfFile(hMap, FILE_MAP_READ, 0, 0, 0);
+    if (!pView) {
+        CloseHandle(hMap);
+        return "";
+    }
+
+    std::string token(static_cast<const char*>(pView));
+    UnmapViewOfFile(pView);
+    CloseHandle(hMap);
+    return token;
+}
+
+std::string GetHeaderValue(const std::string& headers, const std::string& name)
+{
+    std::string lower = headers;
+    for (auto& c : lower) c = (char)tolower((unsigned char)c);
+
+    std::string needle = name;
+    for (auto& c : needle) c = (char)tolower((unsigned char)c);
+    needle += ":";
+
+    size_t pos = 0;
+    while ((pos = lower.find(needle, pos)) != std::string::npos) {
+        if (pos == 0 || (pos >= 2 && lower.compare(pos - 2, 2, "\r\n") == 0)) {
+            size_t valueStart = pos + needle.size();
+            while (valueStart < headers.size() &&
+                (headers[valueStart] == ' ' || headers[valueStart] == '\t'))
+                ++valueStart;
+
+            size_t valueEnd = headers.find("\r\n", valueStart);
+            if (valueEnd == std::string::npos) valueEnd = headers.size();
+
+            while (valueEnd > valueStart &&
+                (headers[valueEnd - 1] == ' ' || headers[valueEnd - 1] == '\t'))
+                --valueEnd;
+
+            return headers.substr(valueStart, valueEnd - valueStart);
+        }
+        pos += needle.size();
+    }
+    return "";
+}
+
+bool ConstantTimeEquals(const std::string& a, const std::string& b)
+{
+    if (a.size() != b.size()) return false;
+    unsigned char diff = 0;
+    for (size_t i = 0; i < a.size(); ++i) {
+        diff |= (unsigned char)(a[i] ^ b[i]);
+    }
+    return diff == 0;
+}
+
+std::string GetAuthToken()
+{
+    std::lock_guard<std::mutex> lock(g_tokenMutex);
+    if (!g_AuthTokenLoaded) {
+        g_AuthTokenCache = ReadAuthTokenFromSharedMemory();
+        g_AuthTokenLoaded = true;
+        Log("[AUTH] Token geladen (%zu Zeichen).\n", g_AuthTokenCache.size());
+    }
+    return g_AuthTokenCache;
+}
+
+bool CheckAuth(const std::string& headers)
+{
+    std::string expected = GetAuthToken();
+    if (expected.empty()) {
+        Log("[AUTH] No Token available - blocking all Requests.\n");
+        return false;
+    }
+
+    std::string got = GetHeaderValue(headers, "X-Auth-Token");
+    if (got.empty()) {
+        Log("[AUTH] Request missing X-Auth-Token.\n");
+        return false;
+    }
+
+    bool ok = ConstantTimeEquals(got, expected);
+    if (!ok) {
+        Log("[AUTH] Token-Mismatch.\n");
+    }
+    return ok;
 }

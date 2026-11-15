@@ -19,3 +19,13 @@ bool SafeWrite32(uintptr_t addr, int value);
 bool PatchInt(uintptr_t address, int value, int* before, int* after);
 
 int GetServerPort(int defaultPort = 58888);
+
+std::string ReadAuthTokenFromSharedMemory();
+
+std::string GetHeaderValue(const std::string& headers, const std::string& name);
+
+bool ConstantTimeEquals(const std::string& a, const std::string& b);
+
+std::string GetAuthToken();
+
+bool CheckAuth(const std::string& headers);
