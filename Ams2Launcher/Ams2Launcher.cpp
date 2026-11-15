@@ -239,7 +239,7 @@ std::wstring GetDefaultAms2Path() {
 }
 
 void TriggerRestApiRequest() {
-    std::cout << "\n> [Patching] Apply configuration. Hold on ..." << std::endl;
+    std::cout << "\n> [Patching] Hold on! Applying configuration ..." << std::endl;
 
     std::string fileContent = "";
     if (fs::exists(g_ConfigPath)) {
@@ -437,7 +437,7 @@ int main(int argc, char* argv[]) {
     int stableCount = 0;
     bool foregroundOnce = false;
     const int requiredStable = 3;
-    const int timeoutSeconds = 60;
+    const int timeoutSeconds = 90;
 
     for (int t = 0; t < timeoutSeconds; t++) {
         HWND hwndCheck = FindWindowW(NULL, L"Automobilista 2");
