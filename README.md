@@ -61,14 +61,14 @@ To avoid having to create separate templates for each championship or series of 
 
 Here's how to pass your template to the launcher and start the race from your app:
 
-```php
-Path\To\Ams2Brocker\Launcher.exe -t "quick-race-example.json"
+```cs
+Path\To\Ams2Broker\Launcher.exe -t "quick-race-example.json"
 ```
 
 Here’s what it looks like with placeholders:
 
-```php
-Path\To\Ams2Brocker\Launcher.exe
+```cs
+Path\To\Ams2Broker\Launcher.exe
   -t "placeholders-example.json"
   -p "#CAR#=-950775810|#LIVERY#=70|#TRACK#=1910889511|#LAPS#=33"
 ```
@@ -141,7 +141,7 @@ string brokerDir = Path.GetDirectoryName(pathToLauncher);
 string templateFile = "placeholders-example.json";
 
 // Get these from a database:
-int carId = -950775810;
+long carId = -950775810;
 int liveryId = 70;
 long trackId = 1910889511;
 int laps = 33;
@@ -172,14 +172,19 @@ As soon as the user clicks the button in your app and goes to the race, the laun
 
 Once the game reaches the main menu, the user enters the single-player race. There, they press the INSERT key on the keyboard, which patches the configuration. After confirming the process in the launcher, they can start the race.
 
-## Troubleshooting:
+### Troubleshooting:
 
-There is a `config.ini` file in the Ams2-Broker directory. The path to Automobilista 2 can be entered there if the launcher cannot find the game automatically. Additionally, a different port can be set if the API that triggers the patching is unresponsive. Furthermore, the hotkeys can be changed there if their assignments conflict with other apps.
+There is a `config.ini` file in the Ams2Broker directory. The path to Automobilista 2 can be entered there if the launcher cannot find the game automatically. Additionally, a different port can be set if the API that triggers the patching is unresponsive. Furthermore, the hotkeys can be changed there if their assignments conflict with other apps.
 
+# CONTRIBUTION
 
+If anyone knows how to implement the multi-classes, I would appreciate your help. I've only managed to get the first 20 or so entries to work reliably. After that, it seems like lazy loading takes place. In total, there could be up to about 110 vehicle classes — depending on which DLCs the user owns. 
 
+I've decided to put the implementation of the multi-classes on hold for now.
 
+# DISCLAIMER
 
+This software allows you to load custom configurations, including vehicles and tracks. The author does not condone piracy or the circumvention of official game licenses. If the software is used in an application that utilizes premium or DLC content, it is solely the responsibility of the mod or app developer to implement appropriate authorization checks and restrict access to users who own the respective content. The author assumes no liability for copyright or license infringements caused by third parties.
 
 
 
