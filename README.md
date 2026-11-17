@@ -12,16 +12,16 @@ The AMS2Broker consists of two parts: a launcher (Launcher.exe) and a DLL (Patch
 ## What can’t the AMS2Broker do?
 In the current version, it cannot automatically configure multi-class races. If multi-class races are required, the user must configure these settings manually - AFTER he applied the patch!
 
-## What should I know?
+## What else should you know?
 - AMS2 must be launched in “borderless” mode.
-- For single-player mode only.
+- The AMS2Broker is for single-player mode only.
 - Settings are patched in the background and the changes are not directly visible on the screen.
 - After patching, settings can be manually overwritten by the user.
 - It is the responsibility of the developer that implements the tool to ensure that only vehicles and tracks owned by the user are loaded.
 - AMS2 must be started and stopped separately for each race.
 
 ## Is it safe to use the AMS2Broker?
-I developed this tool in my spare time with no financial interest. That’s why I didn’t spend any money on an expensive code-signing certificate. Because of the missing certificate, Windows blocks the tool from running. To run the tool anyway, you’ll once need to click “More info” and then “Run anyway.” 
+I developed this tool in my spare time with no financial interest. That’s why I didn’t spend money on an expensive code-signing certificate. Because of the missing certificate, Windows blocks the tool from running. To run the tool anyway, you’ll once need to click “More info” and then “Run anyway.” 
 
 If that seems too risky: the source code is open. You can examine it and compile the launcher and the DLL yourself. Make sure the names remain exactly the same.
 
@@ -30,7 +30,7 @@ Additionally I’ve used a Random Access Token to prevent third-party software f
 So in my opinion, it’s as safe as it can be.
 
 ## Which programming languages are supported?
-All of them. The race weekend is configured directly through the launcher. Therefore, the application that uses the broker can be developed in any language and using any technology.
+All of them. The race is configured directly through the launcher. Therefore, the application that uses the AMS2Broker can be developed in any language and using any technology.
 
 ## Can users create their own races and championships?
 Yes, they can, but this requires the developer to implement a feature that loads the additional files into their app.
@@ -38,7 +38,7 @@ Yes, they can, but this requires the developer to implement a feature that loads
 ## In summary:
 The AMS2Broker is a tool for automatically configuring a single race. It offers maximum security and convenience for the user and maximum flexibility for the developer.
 
-
+<hr>
 
 # DEVELOPER GUIDE
 
@@ -53,9 +53,9 @@ The Templates folder contains 3 examples:
 - quick-race-example.json  
 - placeholders-example.json  
 
-To familiarize yourself with the *complete configuration* and all parameters, you should start with the **full** example. This allows you to define all race settings.
+To familiarize yourself with the *complete configuration* and all parameters, you should start with the **full** example. This allows you to define ALL race settings.
 
-The **quick-race** example omits many parameters. This means you only *override certain settings*, while others remain as the user previously set them. This might be a good idea in terms of AI settings.
+The **quick-race** example omits many parameters. This means you only *override certain settings*, while others remain as the user previously set them. This for example might be a good idea in terms of AI settings.
 
 To avoid having to create separate templates for each championship or series of races, you can use *placeholders*. Take a look at the **placeholders** example for more information.
 
@@ -87,7 +87,7 @@ The launcher accepts the following flags:
 ```
 
 ### Examples
-Here are examples of how to implement AMS2Broker in different languages. They are not tested, but it should work something like this:
+Here are examples of how to implement the AMS2Broker in different languages. They are not tested, but it should work something like this:
 
 #### JavaScript (Electron/NodeJS):
 
