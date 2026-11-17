@@ -35,6 +35,9 @@ All of them. The race is configured directly through the launcher. Therefore, th
 ## Can users create their own races and championships?
 Yes, they can, but this requires the developer to implement a feature that loads the additional files into their app.
 
+## What's the final vision? 
+The launcher, which currently still provides assistance with patching, should be invisible at some point. So that after clicking on 'Go to race' in the main app, the user lands directly in the single race of AMS2 where he only has to click the Start button. 
+
 ## In summary:
 The AMS2Broker is a tool for automatically configuring a single race. It offers maximum security and convenience for the user and maximum flexibility for the developer.
 
