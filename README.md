@@ -16,7 +16,7 @@ In the current version, it cannot automatically configure multi-class races. If 
 - AMS2 must be launched in “borderless” mode.
 - For single-player mode only.
 - Settings are patched in the background and the changes are not directly visible on the screen.
-- After patching settings can be manually overwritten by the user.
+- After patching, settings can be manually overwritten by the user.
 - It is the responsibility of the developer that implements the tool to ensure that only vehicles and tracks owned by the user are loaded.
 - AMS2 must be started and stopped separately for each race.
 
