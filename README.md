@@ -43,7 +43,7 @@ The AMS2Broker is a tool for automatically configuring a single race. It offers 
 # DEVELOPER GUIDE
 
 ### Installation
-Download the latest version from [here](https://github.com/dahas/AMS2Broker/raw/main/AMS2Broker.zip) and extract it directly into your app's directory.
+Download the latest version from [here](https://github.com/dahas/AMS2Broker/raw/master/AMS2Broker.zip) and extract it directly into your app's directory.
 
 ### Templates
 All races are configured using JSON templates. The template files must be stored in the <code>Path\To\Ams2Broker\Templates</code> directory.
