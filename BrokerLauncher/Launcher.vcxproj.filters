@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Ams2Launcher.cpp">
+    <ClCompile Include="Launcher.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="config.cpp">
@@ -26,5 +26,13 @@
     <ClInclude Include="config.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Launcher.rc">
+      <Filter>Ressourcendateien</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

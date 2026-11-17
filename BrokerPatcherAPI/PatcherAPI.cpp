@@ -3,7 +3,7 @@
 
 #include "pch.h"
 #include "framework.h"
-#include "ProxyDLL.h"
+#include "PatcherAPI.h"
 
 
 // Dies ist ein Beispiel für eine exportierte Variable.

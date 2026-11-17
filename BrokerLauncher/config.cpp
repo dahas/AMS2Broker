@@ -8,6 +8,7 @@
 
 namespace fs = std::filesystem;
 
+std::wstring g_GamePathToExe = L"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Automobilista 2\\AMS2AVX.exe";
 int g_ServerPort = 58888;
 int g_HotkeyApply = VK_INSERT;
 int g_HotkeyLauncher = VK_HOME;
@@ -32,7 +33,7 @@ static const std::unordered_map<std::string, int> vkMap = {
 static fs::path GetConfigPath() {
     wchar_t exePath[MAX_PATH];
     GetModuleFileNameW(NULL, exePath, MAX_PATH);
-    return fs::path(exePath).parent_path().parent_path() / L"config.ini";
+    return fs::path(exePath).parent_path() / L"config.ini";
 }
 
 static std::string Trim(const std::string& str) {
@@ -56,6 +57,35 @@ static int ParseVirtualKey(const std::string& token) {
     }
 
     return 0;
+}
+
+void LoadGamePathToExeConfig() {
+    std::ifstream file(GetConfigPath());
+    if (!file.is_open()) return;
+
+    std::string currentSection = "";
+    std::string line;
+
+    while (std::getline(file, line)) {
+        line = Trim(line);
+        if (line.empty() || line[0] == ';' || line[0] == '#') continue;
+
+        if (line.front() == '[' && line.back() == ']') {
+            currentSection = Trim(line.substr(1, line.size() - 2));
+            continue;
+        }
+
+        if (currentSection == "game") {
+            size_t eq = line.find('=');
+            if (eq != std::string::npos) {
+                std::string key = Trim(line.substr(0, eq));
+                std::string val = Trim(line.substr(eq + 1));
+                if (key == "path_to_exe" && !val.empty()) {
+                    g_GamePathToExe = fs::path(val).wstring();
+                }
+            }
+        }
+    }
 }
 
 void LoadServerConfig() {
@@ -127,6 +157,7 @@ void LoadConfiguration() {
         return;
     }
 
+    LoadGamePathToExeConfig();
     LoadServerConfig();
     LoadHotkeyConfig();
 }

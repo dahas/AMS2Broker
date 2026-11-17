@@ -9,6 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include <bcrypt.h>
+
 #include "config.h"
 
 #pragma comment(lib, "wininet.lib")
@@ -120,7 +121,6 @@ DWORD GetProcessIdByName(const wchar_t* processName) {
     return pid;
 }
 
-// Hilfsfunktion, um das Spiel (AMS2) gewaltsam zu beenden, falls der Launcher schließt
 void TerminateGameProcess(DWORD pid) {
     if (pid == 0) return;
     HANDLE hProc = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
@@ -130,7 +130,6 @@ void TerminateGameProcess(DWORD pid) {
     }
 }
 
-// Konsolen-Event-Handler: Fängt das Schließen des Launchers ab
 BOOL WINAPI ConsoleCtrlHandler(DWORD ctrlType) {
     if (ctrlType == CTRL_CLOSE_EVENT || ctrlType == CTRL_SHUTDOWN_EVENT || ctrlType == CTRL_C_EVENT) {
         g_Running = false;
@@ -270,33 +269,73 @@ int InjectDLL(DWORD processId, const char* dllPath) {
 }
 
 std::wstring GetSteamInstallPath() {
-    HKEY hKey;
     wchar_t path[MAX_PATH] = { 0 };
-    DWORD bufferSize = sizeof(path);
+    DWORD bufSize = sizeof(path);
+    HKEY hKey;
 
-    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\WOW6432Node\\Valve\\Steam", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-        if (RegQueryValueExW(hKey, L"InstallPath", NULL, NULL, (LPBYTE)path, &bufferSize) == ERROR_SUCCESS) {
-            RegCloseKey(hKey);
-            return std::wstring(path);
-        }
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam",
+        0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        bufSize = sizeof(path);
+        LONG rc = RegQueryValueExW(hKey, L"SteamPath", nullptr, nullptr,
+            (LPBYTE)path, &bufSize);
         RegCloseKey(hKey);
+        if (rc == ERROR_SUCCESS && path[0] != L'\0')
+            return std::wstring(path);
     }
+
+    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\WOW6432Node\\Valve\\Steam",
+        0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        bufSize = sizeof(path);
+        LONG rc = RegQueryValueExW(hKey, L"InstallPath", nullptr, nullptr,
+            (LPBYTE)path, &bufSize);
+        RegCloseKey(hKey);
+        if (rc == ERROR_SUCCESS && path[0] != L'\0')
+            return std::wstring(path);
+    }
+
     return L"";
+}
+
+std::vector<std::wstring> GetSteamLibraryFolders(const std::wstring& steamPath) {
+    std::vector<std::wstring> libs;
+    libs.push_back(steamPath);
+
+    std::wstring vdf = steamPath + L"\\steamapps\\libraryfolders.vdf";
+    std::wifstream f(vdf);
+    if (!f) return libs;
+
+    std::wstring line;
+    while (std::getline(f, line)) {
+        auto pos = line.find(L"\"path\"");
+        if (pos == std::wstring::npos) continue;
+        auto q1 = line.find(L'"', pos + 6);
+        auto q2 = line.find(L'"', q1 + 1);
+        if (q1 == std::wstring::npos || q2 == std::wstring::npos) continue;
+        std::wstring p = line.substr(q1 + 1, q2 - q1 - 1);
+        std::wstring unescaped;
+        for (size_t i = 0; i < p.size(); ++i) {
+            if (p[i] == L'\\' && i + 1 < p.size() && p[i + 1] == L'\\') {
+                unescaped += L'\\'; ++i;
+            }
+            else unescaped += p[i];
+        }
+        libs.push_back(unescaped);
+    }
+    return libs;
 }
 
 std::wstring GetDefaultAms2Path() {
     std::wstring steamPath = GetSteamInstallPath();
     if (!steamPath.empty()) {
-        std::wstring ams2Path = steamPath + L"\\steamapps\\common\\Automobilista 2\\AMS2AVX.exe";
-        if (fs::exists(ams2Path)) {
-            return ams2Path;
-        }
-        std::wstring normalPath = steamPath + L"\\steamapps\\common\\Automobilista 2\\AMS2.exe";
-        if (fs::exists(normalPath)) {
-            return normalPath;
+        for (auto& lib : GetSteamLibraryFolders(steamPath)) {
+            std::wstring base = lib + L"\\steamapps\\common\\Automobilista 2\\";
+            std::wstring avx = base + L"AMS2AVX.exe";
+            if (fs::exists(avx)) return avx;
+            std::wstring normal = base + L"AMS2.exe";
+            if (fs::exists(normal)) return normal;
         }
     }
-    return L"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Automobilista 2\\AMS2AVX.exe";
+    return g_GamePathToExe;
 }
 
 void TriggerRestApiRequest() {
@@ -310,7 +349,8 @@ void TriggerRestApiRequest() {
         fileContent = buffer.str();
     }
     else {
-        std::wcout << "> [Patching] Warning: Config file not found under: " << g_ConfigPath << ", sending empty body." << std::endl;
+        std::wcout << "> [Patching] Failed: Template file not found under: " << g_ConfigPath << "." << std::endl;
+        return; 
     }
 
     HINTERNET hSession = InternetOpenA("AMS2Launcher/1.0", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
@@ -390,7 +430,7 @@ void HotkeyListener() {
     std::cout << "\n[Keyboard Controls]" << std::endl;
     std::cout << "  [" << GetKeyName(g_HotkeyApply) << "] -> Apply Patch" << std::endl;
     std::cout << "  [" << GetKeyName(g_HotkeyLauncher) << "] -> Bring Launcher up front" << std::endl;
-    std::cout << "  [" << GetKeyName(g_HotkeyQuit) << "] -> Quit Game\n" << std::endl;
+    std::cout << "  [" << GetKeyName(g_HotkeyQuit) << "] -> Quit Game & Launcher\n" << std::endl;
 
     bool pPressed = false, qPressed = false;
 
@@ -420,11 +460,11 @@ void HotkeyListener() {
             if (!qPressed) {
                 qPressed = true;
                 BringLauncherToFront();
-                std::cout << "\n> Really quit the game? (Y/N): " << std::flush;
+                std::cout << "\n> Really quit? (Y/N): " << std::flush;
 
-                while (true) {
+                while (true) { 
                     if (GetAsyncKeyState('Y') & 0x8000) {
-                        std::cout << "Y\n> Quitting Game ..." << std::endl;
+                        std::cout << "Y\n> Closing ..." << std::endl;
                         TerminateGameProcess(g_TargetPid);
                         g_Running = false;
                         break;
@@ -446,10 +486,24 @@ void HotkeyListener() {
     }
 }
 
+void PrintHackerBanner() {
+    std::cout << "\033[32m";
+    std::cout << "==============================================================\n";
+    std::cout << "  __   _  _  ____  ____     ____  ____   __  __ _  ____  ____  \n";
+    std::cout << " / _\\ ( \\/ )/ ___)(___ \\   (  _ \\(  _ \\ /  \\(  / )(  __)(  _ \\\n";
+    std::cout << "/    \\/ \\/ \\\\___ \\ / __/    ) _ ( )   /(  O ))  (  ) _)  )   /\n";
+    std::cout << "\\_/\\_/\\_)(_/(____/(____)   (____/(__\\_) \\__/(__\\_)(____)(__\\_)\n";
+    std::cout << "==============================================================\n";
+    std::cout << " AMS2Broker v1.0. Created by daHas (C) 2026\n";
+    std::cout << "==============================================================\n\n\033[0m";
+}
+
 int main(int argc, char* argv[]) {
     SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
 
     SetupLauncherWindow();
+
+    PrintHackerBanner();
 
     LoadConfiguration();
 
@@ -468,13 +522,12 @@ int main(int argc, char* argv[]) {
     wchar_t exePathW[MAX_PATH];
     GetModuleFileNameW(NULL, exePathW, MAX_PATH);
     fs::path launcherDir = fs::path(exePathW).parent_path();
-    fs::path templatesDir = launcherDir.parent_path() / L"Templates";
+    fs::path templatesDir = launcherDir / L"Templates";
+    std::wstring relativeConfigPath = L"quick-race-example.json";
 
-    std::wstring relativeConfigPath = L"single-race-example.json";
-
-    for (int i = 1; i < argc; i++) {
+    for (int i = 1; i < argc; i++) { 
         std::string arg = argv[i];
-        if ((arg == "--config" || arg == "-c") && i + 1 < argc) {
+        if ((arg == "--template" || arg == "-t") && i + 1 < argc) {
             std::string pathStr = argv[i + 1];
             relativeConfigPath = std::wstring(pathStr.begin(), pathStr.end());
             i++;
@@ -487,12 +540,19 @@ int main(int argc, char* argv[]) {
 
     g_ConfigPath = (templatesDir / relativeConfigPath).wstring();
 
-    std::wcout << "Config: " << relativeConfigPath << std::endl;
+    if (!fs::exists(g_ConfigPath)) {
+        std::wcerr << "Error: Template not found: " << g_ConfigPath << ".\nClosing ..." << std::endl;
+        Sleep(4000);
+        return 1;
+    }
+    else {
+        std::wcout << "Template: " << relativeConfigPath << std::endl;
+    }
 
     std::wstring appPath = GetDefaultAms2Path();
 
     if (!fs::exists(appPath)) {
-        std::cerr << "Error: EXE not found at this location:\n"
+        std::cerr << "Error: Game not found at this location:\n"
             << std::string(appPath.begin(), appPath.end()) << std::endl;
         Sleep(4000);
         return 1;
@@ -572,11 +632,11 @@ int main(int argc, char* argv[]) {
     wchar_t exePathW2[MAX_PATH];
     GetModuleFileNameW(NULL, exePathW2, MAX_PATH);
     fs::path launcherDir2 = fs::path(exePathW2).parent_path();
-    fs::path dllPathFs = launcherDir2.parent_path() / L"ProxyDLL" / L"ProxyDll.dll";
+    fs::path dllPathFs = launcherDir2 / L"PatcherAPI.dll";
 
     std::string dllPathStr = dllPathFs.string();
     const char* dllPath = dllPathStr.c_str();
-    const wchar_t* dllName = L"ProxyDll.dll";
+    const wchar_t* dllName = L"PatcherAPI.dll";
 
     bool success = false;
     const int maxRetries = 5;
@@ -617,20 +677,22 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    std::cout << "\n-----------------------------------------------------" << std::endl;
+    std::cout << "\n--------------------------------------------------------------" << std::endl;
     std::cout << "PLEASE READ:" << std::endl;
-    std::cout << "Once you are in the main menu, go to the single race." << std::endl;
+    std::cout << "Once you are in the main menu, enter the single race." << std::endl;
     std::cout << "Then press [" << GetKeyName(g_HotkeyApply) << "] on your keyboard to patch the settings." << std::endl;
-    std::cout << "The patch will NOT be applied outside the single race.\n" << std::endl;
+    std::cout << "The patch will be RESET when you apply it outside the" << std::endl;
+    std::cout << "single race!\n" << std::endl;
     std::cout << "Wait for the confirmation in the launcher. Don't expect" << std::endl;
     std::cout << "the settings to be directly visible - they are applied in" << std::endl;
     std::cout << "the background. You'll have it when you start the session." << std::endl;
-    std::cout << "-----------------------------------------------------\n" << std::endl;
+    std::cout << "--------------------------------------------------------------\n" << std::endl;
 
     std::cout << "Waiting for main menu ..." << std::endl;
 
     while (g_Running && IsProcessAms2(targetPid)) {
         if (CheckDllReady()) {
+            BringLauncherToFront();
             break;
         }
 
@@ -649,8 +711,6 @@ int main(int argc, char* argv[]) {
         std::cout << "Game closed before reaching main menu. Exiting launcher." << std::endl;
         return 0;
     }
-
-    BringLauncherToFront();
 
     std::thread listener(HotkeyListener);
     listener.detach();

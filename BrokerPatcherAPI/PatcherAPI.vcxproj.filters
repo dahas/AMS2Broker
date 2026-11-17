@@ -21,7 +21,7 @@
     <ClInclude Include="framework.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="ProxyDLL.h">
+    <ClInclude Include="PatcherAPI.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="pch.h">
@@ -33,9 +33,12 @@
     <ClInclude Include="utils.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ProxyDLL.cpp">
+    <ClCompile Include="PatcherAPI.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="dllmain.cpp">
@@ -50,5 +53,10 @@
     <ClCompile Include="utils.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc">
+      <Filter>Ressourcendateien</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

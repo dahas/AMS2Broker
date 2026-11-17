@@ -4,8 +4,11 @@
 #include <cstdio>
 #include <cstring>
 #include <mutex>
+#include <iostream>
+#include <string>
+#include <chrono>
 
-const char* LOG_PATH = "C:\\Users\\Public\\ams2_broker.log";
+const char* LOG_PATH = "AMS2Broker.log";
 
 static std::mutex g_logMutex;
 static uintptr_t g_moduleBase = 0;
@@ -14,12 +17,17 @@ std::mutex g_tokenMutex;
 std::string g_AuthTokenCache;
 bool g_AuthTokenLoaded = false;
 
+std::string GetCurrentTimestamp() {
+    auto now = std::chrono::system_clock::now();
+    return std::format("{:%Y-%m-%d %H:%M:%S}", now);
+}
+
 void InitLog() {
     std::lock_guard<std::mutex> lock(g_logMutex);
     FILE* f = nullptr;
     fopen_s(&f, LOG_PATH, "w");
     if (f) {
-        fprintf(f, "[HTTP] Server gestartet.\n");
+        fprintf(f, "[HTTP] %s Server gestartet.\n", GetCurrentTimestamp().c_str());
         fclose(f);
     }
 }
@@ -63,7 +71,6 @@ int GetServerPort(int defaultPort) {
 
     std::wstring path(dllPath);
     path = path.substr(0, path.find_last_of(L"\\/") + 1);
-    path = path.substr(0, path.find_last_of(L"\\/", path.size() - 2) + 1);
     path += L"config.ini";
 
     UINT port = GetPrivateProfileIntW(L"server", L"port", defaultPort, path.c_str());

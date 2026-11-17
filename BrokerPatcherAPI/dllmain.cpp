@@ -12,6 +12,7 @@
 
 #include "json.h"
 #include "utils.h"
+#include "SharedMemory.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -346,8 +347,14 @@ bool ApplySettings(const std::string& json) {
         uintptr_t rva = RvaFromAbsolute(s.absoluteAddress);
         bool ok = PatchInt(At(rva), target, &before, &after);
 
-        Log("[SET] %s json=%lld ziel=%d ok=%d vorher=%d nachher=%d\n",
-            s.path->back().c_str(), v, target, ok ? 1 : 0, before, after);
+        std::string fullKeyPath = "";
+        for (size_t i = 0; i < s.path->size(); ++i) {
+            if (i > 0) fullKeyPath += ": ";
+            fullKeyPath += (*s.path)[i];
+        }
+
+        Log("[SET] %s json=%lld target=%d ok=%d before=%d after=%d\n",
+            fullKeyPath.c_str(), v, target, ok ? 1 : 0, before, after);
         if (!ok) allOk = false;
     }
     return allOk;
@@ -390,14 +397,14 @@ bool EntryIsClass(uintptr_t base, int classNumber) {
 bool ApplyClassesNow(const std::map<int, int>& parsed) {
     uintptr_t base = 0;
     if (!ResolveClassBase(base) || !EntryIsClass(base, 1)) {
-        Log("[CLASS] Liste nicht bereit.\n");
+        Log("[CLASS] List not ready.\n");
         return false;
     }
 
     bool allOk = true;
     for (const auto& kv : parsed) {
         if (!EntryIsClass(base, kv.first)) {
-            Log("[CLASS] Klasse %d nicht in der Liste.\n", kv.first);
+            Log("[CLASS] Class %d not in list.\n", kv.first);
             allOk = false;
             continue;
         }
@@ -406,7 +413,7 @@ bool ApplyClassesNow(const std::map<int, int>& parsed) {
         SafeRead(addr, &before, sizeof(before));
         bool ok = SafeWrite32(addr, kv.second);
         SafeRead(addr, &after, sizeof(after));
-        Log("[CLASS] Klasse %d ziel=%d ok=%d vorher=%d nachher=%d\n",
+        Log("[CLASS] Class %d target=%d ok=%d before=%d after=%d\n",
             kv.first, kv.second, ok ? 1 : 0, before, after);
         if (!ok || after != kv.second) allOk = false;
     }
@@ -469,13 +476,39 @@ void SendResponse(SOCKET s, const char* status, const char* text) {
     send(s, resp.c_str(), (int)resp.size(), 0);
 }
 
+static constexpr unsigned int GAME_STATE_FRONT_END = 1;
+
+static bool ReadGameState(unsigned int& state) {
+    HANDLE h = OpenFileMappingW(FILE_MAP_READ, FALSE, L"$pcars2$");
+    if (!h) return false;
+
+    const SharedMemory* shm =
+        (const SharedMemory*)MapViewOfFile(h, FILE_MAP_READ, 0, 0, sizeof(SharedMemory));
+    if (!shm) { CloseHandle(h); return false; }
+
+    bool ok = false;
+    for (int attempt = 0; attempt < 5 && !ok; ++attempt) {
+        unsigned int seqBefore = shm->mSequenceNumber;
+        if (seqBefore % 2 != 0) { Sleep(1); continue; }
+        if (shm->mVersion != SHARED_MEMORY_VERSION) break;
+
+        unsigned int s = shm->mGameState;
+        MemoryBarrier();
+        if (shm->mSequenceNumber == seqBefore) { state = s; ok = true; }
+    }
+
+    UnmapViewOfFile((LPCVOID)shm);
+    CloseHandle(h);
+    return ok;
+}
+
 void HandleClient(SOCKET clientSocket) {
     DWORD timeoutMs = 3000;
     setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
 
     std::string headers, body;
     if (!ReadHttpRequest(clientSocket, headers, body)) {
-        Log("[HTTP] Request unvollstaendig oder zu gross.\n");
+        Log("[HTTP] Request incomplete or too big.\n");
         SendResponse(clientSocket, "400 Bad Request", "BAD REQUEST");
         closesocket(clientSocket);
         return;
@@ -489,7 +522,7 @@ void HandleClient(SOCKET clientSocket) {
 
     if (headers.find("POST /patch") != std::string::npos) {
         if (body.empty()) {
-            Log("[HTTP] Leerer Body.\n");
+            Log("[HTTP] Empty body.\n");
             SendResponse(clientSocket, "400 Bad Request", "EMPTY BODY");
         }
         else {
@@ -512,11 +545,20 @@ void HandleClient(SOCKET clientSocket) {
         bool readOk = SafeRead(At(rva), &carValue, sizeof(carValue));
 
         if (readOk && carValue != 0) {
+            Sleep(10000);
             SendResponse(clientSocket, "200 OK", "READY");
         }
         else {
             SendResponse(clientSocket, "503 Service Unavailable", "NOT READY");
         }
+
+        //unsigned int state = 0;
+        //if (ReadGameState(state) && state == GAME_FRONT_END) {
+        //    SendResponse(clientSocket, "200 OK", "READY");
+        //}
+        //else {
+        //    SendResponse(clientSocket, "503 Service Unavailable", "NOT READY");
+        //}
     }
 
     closesocket(clientSocket);
@@ -559,7 +601,7 @@ bool ValidateAddresses() {
         int probe = 0;
         uintptr_t rva = RvaFromAbsolute(s.absoluteAddress);
         if (!SafeRead(At(rva), &probe, sizeof(probe))) {
-            Log("[INIT] Adresse 0x%llX (RVA 0x%llX) ungueltig - Update oder ASLR-Problem?\n",
+            Log("[INIT] Address 0x%llX (RVA 0x%llX) invalid - Update or ASLR problem?\n",
                 (unsigned long long)s.absoluteAddress, (unsigned long long)rva);
             ok = false;
         }
@@ -568,7 +610,7 @@ bool ValidateAddresses() {
     int classProbe = 0;
     uintptr_t classRva = RvaFromAbsolute(CLASS_ROOT_ADDR);
     if (!SafeRead(At(classRva), &classProbe, sizeof(classProbe))) {
-        Log("[INIT] CLASS_ROOT_ADDR (RVA 0x%llX) ungueltig - Update oder ASLR-Problem?\n",
+        Log("[INIT] CLASS_ROOT_ADDR (RVA 0x%llX) invalid - Update or ASLR problem?\n",
             (unsigned long long)classRva);
         ok = false;
     }

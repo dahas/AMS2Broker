@@ -1,0 +1,14 @@
+Copyright (c) 2026 Martin Wolf (daHas). All rights reserved.
+
+This software and its source code are provided as "Source-Available" for personal, non-commercial use and community contribution only.
+
+PERMISSIONS:
+- You may view, download, and compile the source code for your own personal use.
+- You may fork this repository solely for the purpose of submitting bug fixes, improvements, or pull requests back to the original repository.
+
+RESTRICTIONS:
+- You may NOT redistribute, re-upload, or publish modified or unmodified copies of this software (source code or compiled binaries) under your own name or any other project name.
+- You may NOT use this software or any part of its source code for commercial purposes.
+
+DISCLAIMER:
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR GAME BANS ARISING FROM THE USE OF THIS SOFTWARE.

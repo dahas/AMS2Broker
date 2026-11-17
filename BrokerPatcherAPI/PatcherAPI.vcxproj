@@ -24,6 +24,7 @@
     <ProjectGuid>{205e98fa-51c4-48d4-8a61-ededd039da6c}</ProjectGuid>
     <RootNamespace>ProxyDLL</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>PatcherAPI</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -80,8 +81,8 @@
     <TargetName>ProxyDLL</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <TargetName>ProxyDLL</TargetName>
-    <OutDir>D:\DotNet\ProxyDLL\</OutDir>
+    <TargetName>PatcherAPI</TargetName>
+    <OutDir>D:\DotNet\AMS2Broker\BrokerPatcherAPI\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -165,6 +166,9 @@
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
     </Manifest>
+    <PostBuildEvent>
+      <Command>copy /Y "$(TargetPath)" "D:\DotNet\AMS2Broker\AMS2Broker\PatcherAPI.dll"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
@@ -173,7 +177,8 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="json.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="ProxyDLL.h" />
+    <ClInclude Include="PatcherAPI.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <ItemGroup>
@@ -185,8 +190,11 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="ProxyDLL.cpp" />
+    <ClCompile Include="PatcherAPI.cpp" />
     <ClCompile Include="utils.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

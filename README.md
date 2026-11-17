@@ -55,7 +55,7 @@ The Templates folder contains 3 examples:
 
 To familiarize yourself with the *complete configuration* and all parameters, you should start with the **full** example. This allows you to define all race settings.
 
-The **quick-race** example omits many parameters. This means you only *override certain settings*, while others remain as the user previously set them.
+The **quick-race** example omits many parameters. This means you only *override certain settings*, while others remain as the user previously set them. This might be a good idea in terms of AI settings.
 
 To avoid having to create separate templates for each championship or series of races, you can use *placeholders*. Take a look at the **placeholders** example for more information.
 
