@@ -174,7 +174,23 @@ Once the game reaches the main menu, the user enters the single-player race. The
 
 ### Troubleshooting:
 
-There is a `config.ini` file in the Ams2Broker directory. The path to Automobilista 2 can be entered there if the launcher cannot find the game automatically. Additionally, a different port can be set if the API that triggers the patching is unresponsive. Furthermore, the hotkeys can be changed there if their assignments conflict with other apps.
+There is a `config.ini` file in the Ams2Broker directory in which the user can make certain changes if things doesn't work as expected. 
+
+##### Game not found:
+The path to Automobilista 2 can be entered there if the launcher cannot find the game automatically. 
+
+##### REST-API error:
+The user can use a different port if the API that triggers the patching is unresponsive. 
+
+##### Hotkeys already assigned
+The hotkeys can be changed as well if their assignments conflict with other apps.
+
+##### Antivirus / Windows Defender False Positive:
+Because Launcher.exe uses DLL injection to communicate with AMS2 and is not digitally signed, antivirus software (including Windows Defender) may flag or quarantine Launcher.exe or PatcherAPI.dll as a false positive.
+
+If files disappear or fail to launch:
+- Open Windows Security → Virus & threat protection → Protection history and restore the quarantined files.  
+- Go to Manage settings → Exclusions and add the entire AMS2Broker folder as an exclusion.  
 
 # CONTRIBUTION
 
