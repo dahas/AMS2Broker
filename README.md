@@ -43,32 +43,34 @@ The AMS2Broker is a tool for automatically configuring a single race. It offers 
 # DEVELOPER GUIDE
 
 ### Installation
-Download the ZIP archive from here and extract it directly into your app's directory.
+Download the latest version from [here](https://github.com/dahas/AMS2Broker/raw/main/AMS2Broker.zip) and extract it directly into your app's directory.
 
-All races are configured using JSON templates. The template files must be stored in the “Path\To\Ams2Broker\Templates\” directory.
+### Templates
+All races are configured using JSON templates. The template files must be stored in the <code>Path\To\Ams2Broker\Templates</code> directory.
 
-The Templates folder contains 3 examples:
-full-example.json
-quick-race-example.json
-placeholders-example.json
+The Templates folder contains 3 examples:  
+- full-example.json  
+- quick-race-example.json  
+- placeholders-example.json  
 
-To familiarize yourself with the complete configuration and all parameters, you should start with the full example. This allows you to define all race settings.
+To familiarize yourself with the *complete configuration* and all parameters, you should start with the **full** example. This allows you to define all race settings.
 
-The quick-race example omits many parameters. This means you only override certain settings, while others remain as the user previously set them.
+The **quick-race** example omits many parameters. This means you only *override certain settings*, while others remain as the user previously set them.
 
-To avoid having to create separate templates for each championship or series of races, you can use placeholders. Take a look at the placeholders example for more information.
+To avoid having to create separate templates for each championship or series of races, you can use *placeholders*. Take a look at the **placeholders** example for more information.
 
 Here's how to pass your template to the launcher and start the race from your app:
 
 ```php
-Path\To\Ams2Brocker\Launcher.exe -t “quick-race-example.json”
+Path\To\Ams2Brocker\Launcher.exe -t "quick-race-example.json"
 ```
 
 Here’s what it looks like with placeholders:
 
 ```php
-Path\To\Ams2Brocker\Launcher.exe -t “placeholders-example.json”
--p “#CAR#=-950775810|#LIVERY#=70|#TRACK#=1910889511|#LAPS#=33”
+Path\To\Ams2Brocker\Launcher.exe
+  -t "placeholders-example.json"
+  -p "#CAR#=-950775810|#LIVERY#=70|#TRACK#=1910889511|#LAPS#=33"
 ```
 
 Assign individual values to the placeholders for each race. Be sure to separate the individual placeholder/value pairs with the pipe symbol “|” without any spaces or line breaks in between:
@@ -84,9 +86,10 @@ The launcher accepts the following flags:
 --placeholders / -p
 ```
 
-Here are examples of how to implement AMS2Broker in different languages:
+### Examples
+Here are examples of how to implement AMS2Broker in different languages. They are not tested, but it should work something like this:
 
-JavaScript (Electron/NodeJS):
+#### JavaScript (Electron/NodeJS):
 
 ```php
 // Frontend
@@ -96,28 +99,72 @@ document.getElementById('yourButton').addEventListener('click', () => {
   ipcRenderer.send('start-race');
 });
 ```
-```php
+```js
 // Backend
 const { ipcMain } = require('electron');
 const { execFile } = require('child_process');
 
+const brokerDir = path.join(__dirname, 'AMS2Broker');
+const launcherPath = path.join(brokerDir, 'Launcher.exe');
+
+const templateFile = "placeholders-example.json";
+
+// Get these from a database:
+const carId = -950775810;
+const liveryId = 70;
+const trackId = 1910889511;
+const laps = 33;
+
 ipcMain.on('start-race', () => {
-  execFile('Path\\To\\Ams2Brocker\\Launcher.exe',
-    ['-t', 'quick-race-example.json'],
+  execFile(launcherPath,
+    [
+      '-t', templateFile,
+      '-p', `#CAR#=${carId}|#LIVERY#=${liveryId}|#TRACK#=${trackId}|#LAPS#=${laps}`
+    ],
     (err) => {
       if (err) console.error(err);
     });
 });
 ```
 
-Vehicle and Track IDs:
+#### C#
+
+```cs
+using System.Diagnostics;
+using System.IO;
+
+string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+string pathToLauncher = Path.Combine(baseDir, "Ams2Broker", "Launcher.exe");
+string brokerDir = Path.GetDirectoryName(pathToLauncher);
+
+string templateFile = "placeholders-example.json";
+
+// Get these from a database:
+int carId = -950775810;
+int liveryId = 70;
+long trackId = 1910889511;
+int laps = 33;
+
+var startInfo = new ProcessStartInfo
+{
+    FileName = pathToLauncher,
+    Arguments = $"-t \"{templateFile}\" -p \"#CAR#={carId}|#LIVERY#={liveryId}|#TRACK#={trackId}|#LAPS#={laps}\"",
+    WorkingDirectory = brokerDir,
+    UseShellExecute = true
+};
+
+Process.Start(startInfo);
+```
+
+### Vehicle and Track IDs:
 
 IDs for vehicles and tracks can be retrieved via the AMS2 Dedicated Server. There are several response files in the Resources folder. These may be out of date. To obtain the IDs for the latest content, you can install the Dedicated Server via Steam (Tools) and run it locally. Once the server is running, you can retrieve the information using the following URIs:
 
-http://localhost:9000/api/list/vehicles/
-http://localhost:9000/api/list/vehicle_classes/
-http://localhost:9000/api/list/tracks/
-http://localhost:9000/api/list/liveries/
+http://localhost:9000/api/list/vehicles/  
+http://localhost:9000/api/list/vehicle_classes/  
+http://localhost:9000/api/list/tracks/  
+http://localhost:9000/api/list/liveries/  
 
 # USER GUIDE
 
