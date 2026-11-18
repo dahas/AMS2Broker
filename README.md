@@ -173,7 +173,7 @@ http://localhost:9000/api/list/liveries/
 
 As soon as the user clicks the button in your app and goes to the race, the launcher opens and starts the game. The first time this happens, Windows SmartScreen will likely pop up and block the launcher from running. The user must therefore be informed that they need to click “More Information” and then “Run anyway”.
 
-Once the game reaches the main menu, the user enters the single-player race. There, they press the INSERT key on the keyboard, which patches the configuration. After confirming the process in the launcher, they can start the race.
+Once the game reaches the main menu, the user enters the single-player race. There, they press the INSERT key on the keyboard, which patches the configuration. After the launcher has confirmed the process, they can start the race.
 
 ### Troubleshooting:
 
