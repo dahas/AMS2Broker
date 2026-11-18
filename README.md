@@ -35,9 +35,6 @@ All of them. The race is configured directly through the launcher. Therefore, th
 ## Can users create their own races and championships?
 Yes, they can, but this requires the developer to implement a feature that loads the additional files into their app.
 
-## What's the final vision? 
-The launcher, which currently still provides assistance with patching, should be invisible at some point. So that after clicking on 'Go to race' in the main app, the user lands directly in the single race of AMS2 where he only has to click the Start button. 
-
 ## In summary:
 The AMS2Broker is a tool for automatically configuring a single race. It offers maximum security and convenience for the user and maximum flexibility for the developer.
 
@@ -173,14 +170,14 @@ http://localhost:9000/api/list/liveries/
 
 As soon as the user clicks the button in your app and goes to the race, the launcher opens and starts the game. The first time this happens, Windows SmartScreen will likely pop up and block the launcher from running. The user must therefore be informed that they need to click “More Information” and then “Run anyway”.
 
-Once the game reaches the main menu, the user enters the single-player race. There, they press the INSERT key on the keyboard, which patches the configuration. After the launcher has confirmed the process, they can start the race.
+The game launches directly into the single race and applies the patch. If entering the single race fails for some reason and the patch is applied outside of it, the user must enter the single race manually and press the INSERT key on the keyboard to apply the patch again. After the launcher has confirmed the process, they can start the race.
 
 ### Troubleshooting:
 
 There is a `config.ini` file in the Ams2Broker directory in which the user can make certain changes if things doesn't work as expected. 
 
 ##### Game not found:
-The path to Automobilista 2 can be entered there if the launcher cannot find the game automatically. 
+The path to AUTOMOBILISTA2 can be entered there if the launcher cannot find the game automatically. 
 
 ##### REST-API error:
 The user can use a different port if the API that triggers the patching is unresponsive. 
