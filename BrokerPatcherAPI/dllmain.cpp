@@ -540,25 +540,52 @@ void HandleClient(SOCKET clientSocket) {
         }
     }
     else if (headers.find("GET /ready") != std::string::npos) {
-        int carValue = 0;
-        uintptr_t rva = RvaFromAbsolute(VEH_CAR_ADDRESS);
-        bool readOk = SafeRead(At(rva), &carValue, sizeof(carValue));
+        static int g_state = 0;
+        static int g_firstCarVal = 0;
+        static int g_previousCarValue = 0;
 
-        if (readOk && carValue != 0) {
-            Sleep(10000);
+        uintptr_t rva = RvaFromAbsolute(VEH_CAR_ADDRESS);
+        uintptr_t targetAddr = At(rva);
+        int carValue = 0;
+        bool readOk = SafeRead(targetAddr, &carValue, sizeof(carValue));
+
+        if (readOk) {
+            switch (g_state) {
+            case 0:
+                if (carValue != 0) {
+                    g_firstCarVal = carValue;
+                    g_state = 1;
+                    Log("[READY] Phase 0: First change detected (%d). Waiting on Car-Hash...\n", carValue);
+                }
+                break;
+
+            case 1:
+                if (carValue != 0 && carValue != g_firstCarVal) {
+                    g_previousCarValue = carValue;
+                    SafeWrite32(targetAddr, 88888);
+                    g_state = 2;
+                    Log("[READY] Phase 1: Car-Hash detected (%d). Patching Sentinel (88888)!\n", g_previousCarValue);
+                }
+                break;
+
+            case 2:
+                if (carValue != 88888) {
+                    g_state = 3;
+                    Log("[READY] Phase 2: Transmission deactivated! New value in RAM: %d\n", carValue);
+                }
+                break;
+
+            case 3:
+                break;
+            }
+        }
+
+        if (g_state == 3) {
             SendResponse(clientSocket, "200 OK", "READY");
         }
         else {
             SendResponse(clientSocket, "503 Service Unavailable", "NOT READY");
         }
-
-        //unsigned int state = 0;
-        //if (ReadGameState(state) && state == GAME_FRONT_END) {
-        //    SendResponse(clientSocket, "200 OK", "READY");
-        //}
-        //else {
-        //    SendResponse(clientSocket, "503 Service Unavailable", "NOT READY");
-        //}
     }
 
     closesocket(clientSocket);

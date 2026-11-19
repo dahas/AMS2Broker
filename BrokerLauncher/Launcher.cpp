@@ -339,7 +339,7 @@ std::wstring GetDefaultAms2Path() {
 }
 
 void TriggerRestApiRequest() {
-    std::cout << "\n> [Patching] Hold on! Applying configuration ..." << std::endl;
+    std::cout << "\r> [Patching] Hold on! Applying configuration ...                               " << std::flush;
 
     std::string fileContent = "";
     if (fs::exists(g_ConfigPath)) {
@@ -349,7 +349,7 @@ void TriggerRestApiRequest() {
         fileContent = buffer.str();
     }
     else {
-        std::wcout << "> [Patching] Failed: Template file not found under: " << g_ConfigPath << "." << std::endl;
+        std::wcout << "\r> [Patching] Failed: Template file not found under: " << g_ConfigPath << ".             " << std::flush;
         return; 
     }
 
@@ -372,10 +372,10 @@ void TriggerRestApiRequest() {
         (LPVOID)fileContent.c_str(), (DWORD)fileContent.size());
     
     if (sent) {
-        std::cout << "> [Patching] Success! You can now start the session." << std::endl;
+        std::cout << "\r> [Patching] Success! You can now start the session.                    " << std::flush;
     }
     else {
-        std::cerr << "> [Patching] Error sending request. Windows-Error: " << GetLastError() << std::endl;
+        std::cerr << "\r> [Patching] Error sending request. Windows-Error: " << GetLastError() << "       " << std::flush;
     }
 
     InternetCloseHandle(hRequest);
@@ -427,7 +427,7 @@ void BringLauncherToFront() {
 }
 
 void HotkeyListener() {
-    std::cout << "\n[Keyboard Controls]" << std::endl;
+    std::cout << "[Keyboard Controls]" << std::endl;
     std::cout << "  [" << GetKeyName(g_HotkeyApply) << "] -> Apply Patch" << std::endl;
     std::cout << "  [" << GetKeyName(g_HotkeyLauncher) << "] -> Bring Launcher up front" << std::endl;
     std::cout << "  [" << GetKeyName(g_HotkeyQuit) << "] -> Quit Game & Launcher\n" << std::endl;
@@ -460,7 +460,7 @@ void HotkeyListener() {
             if (!qPressed) {
                 qPressed = true;
                 BringLauncherToFront();
-                std::cout << "\n> Really quit? (Y/N): " << std::flush;
+                std::cout << "\n\n> Really quit? (Y/N): " << std::flush;
 
                 while (true) { 
                     if (GetAsyncKeyState('Y') & 0x8000) {
@@ -494,8 +494,26 @@ void PrintHackerBanner() {
     std::cout << "/    \\/ \\/ \\\\___ \\ / __/    ) _ ( )   /(  O ))  (  ) _)  )   /\n";
     std::cout << "\\_/\\_/\\_)(_/(____/(____)   (____/(__\\_) \\__/(__\\_)(____)(__\\_)\n";
     std::cout << "==============================================================\n";
-    std::cout << " AMS2Broker v1.0. Created by daHas (C) 2026\n";
-    std::cout << "==============================================================\n\n\033[0m";
+    std::cout << "AMS2Broker v1.0.0. Created by daHas (C) 2026.\n";
+    std::cout << "==============================================================\n\033[0m";
+}
+
+static void ParkMouse(HWND hwndGame) {
+    RECT r;
+    if (!GetWindowRect(hwndGame, &r)) return;
+    int x = r.left + (r.right - r.left) / 2;
+    int y = r.top + 2;
+    SetCursorPos(x, y);
+
+    RECT clip = { x, y, x + 1, y + 1 };
+    ClipCursor(&clip);
+
+    INPUT mv = {};
+    mv.type = INPUT_MOUSE;
+    mv.mi.dwFlags = MOUSEEVENTF_MOVE;
+    mv.mi.dx = 1;
+    SendInput(1, &mv, sizeof(INPUT));
+    Sleep(50);
 }
 
 int main(int argc, char* argv[]) {
@@ -506,6 +524,18 @@ int main(int argc, char* argv[]) {
     PrintHackerBanner();
 
     LoadConfiguration();
+
+    std::cout << "--------------------------------------------------------------" << std::endl;
+    std::cout << "PLEASE READ:" << std::endl;
+    std::cout << "The broker will automatically configure the settings. Wait for " << std::endl;
+    std::cout << "the confirmation. If the confirmation appears while you are" << std::endl;
+    std::cout << "NOT in 'Single Race', manually switch to 'Single Race' and press" << std::endl;
+    std::cout << "[" << GetKeyName(g_HotkeyApply) << "] on the keyboard to apply the patch. After patching" << std::endl;
+    std::cout << "and before you start, you can manually adjust the new settings." << std::endl;
+    std::cout << "--------------------------------------------------------------\n" << std::endl;
+
+    std::thread listener(HotkeyListener);
+    listener.detach();
 
     g_AuthToken = GenerateRandomToken();
     if (g_AuthToken.empty()) {
@@ -546,7 +576,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     else {
-        std::wcout << "Template: " << relativeConfigPath << std::endl;
+        //std::wcout << "Template: " << relativeConfigPath << std::endl;
     }
 
     std::wstring appPath = GetDefaultAms2Path();
@@ -571,7 +601,7 @@ int main(int argc, char* argv[]) {
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
-    std::cout << "Launching AMS2 ..." << std::endl;
+    std::cout << "\rStarting AUTOMOBILISTA2 ...                         " << std::flush;
 
     DWORD targetPid = 0;
     DWORD lastPid = 0;
@@ -614,20 +644,20 @@ int main(int argc, char* argv[]) {
         targetPid = GetProcessIdByName(L"AMS2AVX.exe");
         if (targetPid == 0) targetPid = GetProcessIdByName(L"AMS2.exe");
         if (targetPid == 0) {
-            std::cerr << "Game process not found. Abort." << std::endl;
+            std::cerr << "\rGame process not found. Abort.                           " << std::flush;
             Sleep(3000);
             return 1;
         }
-        std::cout << "Timeout. Trying with PID " << targetPid << " ..." << std::endl;
+        std::cout << "\rTimeout. Trying with PID " << targetPid << " ...         " << std::flush;
     }
     else {
-        std::cout << "Game ready (PID: " << targetPid << ")." << std::endl;
+        std::cout << "\rGame ready (PID: " << targetPid << ").                 " << std::flush;
     }
     g_TargetPid = targetPid;
 
     Sleep(1000);
 
-    //std::cout << "Injecting DLL ..." << std::endl;
+    std::cout << "\rInjecting DLL ...                                 " << std::flush;
 
     wchar_t exePathW2[MAX_PATH];
     GetModuleFileNameW(NULL, exePathW2, MAX_PATH);
@@ -648,7 +678,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (!IsProcessAms2(targetPid)) {
-            std::cerr << "Target process not found. Abort." << std::endl;
+            std::cerr << "\rTarget process not found. Abort.                  " << std::flush;
             break;
         }
 
@@ -659,40 +689,54 @@ int main(int argc, char* argv[]) {
             success = IsModuleLoaded(targetPid, dllName);
         }
         else if (result == 2) {
-            std::cerr << "Abort: LoadLibrary-Thread stuck. No retry." << std::endl;
+            std::cerr << "\rAbort: LoadLibrary-Thread stuck. No retry.                " << std::flush;
             break;
         }
 
         if (!success && attempt < maxRetries) {
-            std::cout << "Attempt " << attempt << " failed. Next attempt in 600 ms..." << std::endl;
+            std::cout << "\rAttempt " << attempt << " failed. Next attempt in 600 ms...           " << std::flush;
             Sleep(600);
         }
     }
 
     if (success) {
-        //std::cout << "Success!" << std::endl;
+        std::cout << "\rSuccess!                                         " << std::flush;
+        Sleep(600);
     }
     else {
-        std::cerr << "DLL injection failed! Exiting launcher." << std::endl;
+        std::cerr << "\rDLL injection failed! Exiting launcher.          " << std::flush;
         return 0;
     }
 
-    std::cout << "\n--------------------------------------------------------------" << std::endl;
-    std::cout << "PLEASE READ:" << std::endl;
-    std::cout << "Once you are in the main menu, enter the single race." << std::endl;
-    std::cout << "Then press [" << GetKeyName(g_HotkeyApply) << "] on your keyboard to patch the settings." << std::endl;
-    std::cout << "The patch will be RESET when you apply it outside the" << std::endl;
-    std::cout << "single race!\n" << std::endl;
-    std::cout << "Wait for the confirmation in the launcher. Don't expect" << std::endl;
-    std::cout << "the settings to be directly visible - they are applied in" << std::endl;
-    std::cout << "the background. You'll have it when you start the session." << std::endl;
-    std::cout << "--------------------------------------------------------------\n" << std::endl;
-
-    std::cout << "Waiting for main menu ..." << std::endl;
+    std::cout << "\rWaiting for main menu ...                     " << std::flush;
 
     while (g_Running && IsProcessAms2(targetPid)) {
         if (CheckDllReady()) {
-            BringLauncherToFront();
+            Sleep(500);
+            HWND hwndGame = FindWindowW(NULL, L"Automobilista 2");
+            if (hwndGame) {
+                SetForegroundWindow(hwndGame);
+                ParkMouse(hwndGame); // Avoid Mouse hovering
+                Sleep(300);
+
+                INPUT inputs[2] = {};
+
+                inputs[0].type = INPUT_KEYBOARD;
+                inputs[0].ki.wVk = VK_RETURN;
+                inputs[0].ki.wScan = (WORD)MapVirtualKey(VK_RETURN, MAPVK_VK_TO_VSC);
+                inputs[0].ki.dwFlags = 0;
+
+                inputs[1].type = INPUT_KEYBOARD;
+                inputs[1].ki.wVk = VK_RETURN;
+                inputs[1].ki.wScan = (WORD)MapVirtualKey(VK_RETURN, MAPVK_VK_TO_VSC);
+                inputs[1].ki.dwFlags = KEYEVENTF_KEYUP;
+
+                SendInput(2, inputs, sizeof(INPUT)); // Enter Single Race
+                Sleep(100);
+                ClipCursor(NULL);
+                BringLauncherToFront();
+                TriggerRestApiRequest(); // Apply Patch!
+            }
             break;
         }
 
@@ -711,9 +755,6 @@ int main(int argc, char* argv[]) {
         std::cout << "Game closed before reaching main menu. Exiting launcher." << std::endl;
         return 0;
     }
-
-    std::thread listener(HotkeyListener);
-    listener.detach();
 
     while (IsProcessAms2(targetPid)) {
         HWND hwnd = FindWindowW(NULL, L"Automobilista 2");

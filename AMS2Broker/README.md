@@ -1,8 +1,8 @@
 # USER GUIDE
 
-After you have clicked the button "Go to race", the launcher opens and starts the game. The first time this happens, Windows SmartScreen will likely pop up and block the launcher from running. You must click “More Information” and then “Run anyway”.
+After you have clicked the button that starts the race, the launcher opens and runs the game. The first time this happens, Windows SmartScreen will likely pop up and block the launcher from running. You must click “More Information” and then “Run anyway”.
 
-Once the game reaches the main menu, enter the single race. There, press the INSERT key on the keyboard, which patches the configuration. After confirming the process in the launcher, you can start the session.
+The broker will automatically configure the settings. Wait for it until the confirmation appears. If the confirmation appears before you've entered the 'Single Race', manually enter the 'Single Race' and press" INSERT (or the button you have configured) to apply the patch.
 
 ### Troubleshooting:
 

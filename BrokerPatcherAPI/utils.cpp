@@ -27,7 +27,7 @@ void InitLog() {
     FILE* f = nullptr;
     fopen_s(&f, LOG_PATH, "w");
     if (f) {
-        fprintf(f, "[HTTP] %s Server gestartet.\n", GetCurrentTimestamp().c_str());
+        fprintf(f, "[HTTP] %s Server running.\n", GetCurrentTimestamp().c_str());
         fclose(f);
     }
 }
@@ -184,7 +184,7 @@ std::string GetAuthToken()
     if (!g_AuthTokenLoaded) {
         g_AuthTokenCache = ReadAuthTokenFromSharedMemory();
         g_AuthTokenLoaded = true;
-        Log("[AUTH] Token geladen (%zu Zeichen).\n", g_AuthTokenCache.size());
+        Log("[AUTH] Token loaded.\n", g_AuthTokenCache.size());
     }
     return g_AuthTokenCache;
 }
