@@ -1,33 +1,128 @@
 #include <windows.h>
 #include <wininet.h>
 #include <tlhelp32.h>
-#include <iostream>
 #include <string>
+#include <vector>
 #include <filesystem>
 #include <thread>
 #include <atomic>
+#include <mutex>
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
 #include <bcrypt.h>
 
 #include "config.h"
 
 #pragma comment(lib, "wininet.lib")
 #pragma comment(lib, "bcrypt.lib")
+#pragma comment(linker, "/SUBSYSTEM:WINDOWS")
 
 namespace fs = std::filesystem;
 
 std::atomic<bool> g_Running(true);
+std::atomic<bool> g_ForceClose(false);
+std::atomic<bool> g_CloseDialogOpen(false);
 DWORD g_TargetPid = 0;
-std::string g_DllPathStr = "";
 
 std::wstring g_ConfigPath = L"";
 std::string g_Placeholders = "#ST#=22|#LAPS#=44";
 
 std::string g_AuthToken = "";
 HANDLE g_hAuthTokenMapping = NULL;
-
 const wchar_t* kSharedMemName = L"Local\\AMS2Launcher_AuthToken";
+
+#define WM_APP_REFRESH (WM_APP + 1)
+
+static HWND g_hwndMain = NULL;
+static HWND g_hwndBanner = NULL;
+static HWND g_hwndLog = NULL;
+static HFONT g_hFontLog = NULL;
+static HFONT g_hFontBanner = NULL;
+static HBRUSH g_hbrBg = NULL;
+
+static std::mutex g_LogMutex;
+static std::vector<std::string> g_Lines;
+static std::string g_Status;
+
+static const COLORREF kColBg = RGB(12, 12, 12);
+static const COLORREF kColText = RGB(204, 204, 204);
+static const COLORREF kColGreen = RGB(0, 200, 0);
+
+static const char* kBanner =
+"==============================================================\r\n"
+"  __   _  _  ____  ____     ____  ____   __  __ _  ____  ____  \r\n"
+" / _\\ ( \\/ )/ ___)(___ \\   (  _ \\(  _ \\ /  \\(  / )(  __)(  _ \\\r\n"
+"/    \\/ \\/ \\\\___ \\ / __/    ) _ ( )   /(  O ))  (  ) _)  )   /\r\n"
+"\\_/\\_/\\_)(_/(____/(____)   (____/(__\\_) \\__/(__\\_)(____)(__\\_)\r\n"
+"==============================================================\r\n"
+" AMS2Broker v1.0.0. Created by daHas (C) 2026.\r\n"
+"==============================================================";
+
+static std::string ToAnsi(const std::wstring& w) {
+    if (w.empty()) return "";
+    int n = WideCharToMultiByte(CP_ACP, 0, w.c_str(), (int)w.size(), NULL, 0, NULL, NULL);
+    std::string s(n, '\0');
+    WideCharToMultiByte(CP_ACP, 0, w.c_str(), (int)w.size(), &s[0], n, NULL, NULL);
+    return s;
+}
+
+static void RequestRefresh() {
+    if (g_hwndMain) PostMessageA(g_hwndMain, WM_APP_REFRESH, 0, 0);
+}
+
+static void Log(const std::string& s) {
+    {
+        std::lock_guard<std::mutex> lk(g_LogMutex);
+        g_Lines.push_back(s);
+    }
+    RequestRefresh();
+}
+
+static void SetStatus(const std::string& s) {
+    {
+        std::lock_guard<std::mutex> lk(g_LogMutex);
+        g_Status = s;
+    }
+    RequestRefresh();
+}
+
+static void RefreshLogControl() {
+    std::string text;
+    {
+        std::lock_guard<std::mutex> lk(g_LogMutex);
+        for (const auto& l : g_Lines) { text += l; text += "\r\n"; }
+        text += g_Status;
+    }
+    SetWindowTextA(g_hwndLog, text.c_str());
+    int len = GetWindowTextLengthA(g_hwndLog);
+    SendMessageA(g_hwndLog, EM_SETSEL, len, len);
+    SendMessageA(g_hwndLog, EM_SCROLLCARET, 0, 0);
+}
+
+static std::atomic<bool> g_AlwaysOnTop(true);
+
+static void BringLauncherToFront() {
+    if (!g_hwndMain) return;
+    ShowWindow(g_hwndMain, SW_RESTORE);
+    SetWindowPos(g_hwndMain, g_AlwaysOnTop ? HWND_TOPMOST : HWND_TOP, 0, 0, 0, 0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    SetForegroundWindow(g_hwndMain);
+}
+
+static void ReleaseTopmost() {
+    g_AlwaysOnTop = false;
+    if (g_hwndMain)
+        SetWindowPos(g_hwndMain, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+}
+
+static void ExitLater(const std::string& msg, int delayMs) {
+    SetStatus(msg);
+    Sleep(delayMs);
+    g_Running = false;
+    g_ForceClose = true;
+    PostMessageA(g_hwndMain, WM_CLOSE, 0, 0);
+}
 
 std::string GenerateRandomToken()
 {
@@ -42,7 +137,7 @@ std::string GenerateRandomToken()
     );
 
     if (status != 0) {
-        std::cerr << "BCryptGenRandom failed: " << status << std::endl;
+        Log("BCryptGenRandom failed: " + std::to_string((long)status));
         return "";
     }
 
@@ -83,23 +178,7 @@ bool WriteTokenToSharedMemory(const std::string& token)
 }
 
 static void PrintError(const char* step) {
-    std::cerr << "  [" << step << "] Windows-Error-Code: " << GetLastError() << std::endl;
-}
-
-void SetupLauncherWindow() {
-    HWND hwndConsole = GetConsoleWindow();
-    if (hwndConsole) {
-        HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-        if (hStdout != INVALID_HANDLE_VALUE) {
-            COORD coord = { 90, 25 };
-            SetConsoleScreenBufferSize(hStdout, coord);
-
-            SMALL_RECT rect = { 0, 0, 89, 24 };
-            SetConsoleWindowInfo(hStdout, TRUE, &rect);
-        }
-
-        SetWindowPos(hwndConsole, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-    }
+    Log(std::string("  [") + step + "] Windows-Error-Code: " + std::to_string(GetLastError()));
 }
 
 DWORD GetProcessIdByName(const wchar_t* processName) {
@@ -128,17 +207,6 @@ void TerminateGameProcess(DWORD pid) {
         TerminateProcess(hProc, 0);
         CloseHandle(hProc);
     }
-}
-
-BOOL WINAPI ConsoleCtrlHandler(DWORD ctrlType) {
-    if (ctrlType == CTRL_CLOSE_EVENT || ctrlType == CTRL_SHUTDOWN_EVENT || ctrlType == CTRL_C_EVENT) {
-        g_Running = false;
-        if (g_TargetPid != 0) {
-            std::cout << "\nLauncher closing. Terminating AMS2 process (PID: " << g_TargetPid << ") ..." << std::endl;
-            TerminateGameProcess(g_TargetPid);
-        }
-    }
-    return FALSE;
 }
 
 bool IsModuleLoaded(DWORD pid, const wchar_t* moduleName) {
@@ -194,10 +262,6 @@ DWORD GetPidFromGameWindow() {
     return pid;
 }
 
-HWND GetGameHWnd() {
-    return FindWindowW(NULL, L"Automobilista 2");
-}
-
 int InjectDLL(DWORD processId, const char* dllPath) {
     HANDLE hProcess = OpenProcess(
         PROCESS_QUERY_INFORMATION |
@@ -247,7 +311,7 @@ int InjectDLL(DWORD processId, const char* dllPath) {
     DWORD waitResult = WaitForSingleObject(hThread, 15000);
 
     if (waitResult != WAIT_OBJECT_0) {
-        std::cerr << "  [WaitForSingleObject] Timeout - LoadLibrary still stuck." << std::endl;
+        Log("  [WaitForSingleObject] Timeout - LoadLibrary still stuck.");
         CloseHandle(hThread);
         CloseHandle(hProcess);
         return 2;
@@ -261,7 +325,7 @@ int InjectDLL(DWORD processId, const char* dllPath) {
     CloseHandle(hProcess);
 
     if (exitCode == 0) {
-        std::cerr << "  [LoadLibrary] 0 - Load failed." << std::endl;
+        Log("  [LoadLibrary] 0 - Load failed.");
         return 0;
     }
 
@@ -339,7 +403,7 @@ std::wstring GetDefaultAms2Path() {
 }
 
 void TriggerRestApiRequest() {
-    std::cout << "\r> [Patching] Hold on! Applying configuration ...                               " << std::flush;
+    SetStatus("> [Patching] Hold on! Applying configuration ...");
 
     std::string fileContent = "";
     if (fs::exists(g_ConfigPath)) {
@@ -349,18 +413,18 @@ void TriggerRestApiRequest() {
         fileContent = buffer.str();
     }
     else {
-        std::wcout << "\r> [Patching] Failed: Template file not found under: " << g_ConfigPath << ".             " << std::flush;
-        return; 
+        SetStatus("> [Patching] Failed: Template file not found under: " + ToAnsi(g_ConfigPath));
+        return;
     }
 
     HINTERNET hSession = InternetOpenA("AMS2Launcher/1.0", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
-    if (!hSession) { std::cerr << "> InternetOpen failed." << std::endl; return; }
+    if (!hSession) { SetStatus("> InternetOpen failed."); return; }
 
     HINTERNET hConnect = InternetConnectA(hSession, "127.0.0.1", g_ServerPort, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
-    if (!hConnect) { std::cerr << "> InternetConnect failed." << std::endl; InternetCloseHandle(hSession); return; }
+    if (!hConnect) { SetStatus("> InternetConnect failed."); InternetCloseHandle(hSession); return; }
 
     HINTERNET hRequest = HttpOpenRequestA(hConnect, "POST", "/patch", NULL, NULL, NULL, 0, 0);
-    if (!hRequest) { std::cerr << "> HttpOpenRequest failed." << std::endl; InternetCloseHandle(hConnect); InternetCloseHandle(hSession); return; }
+    if (!hRequest) { SetStatus("> HttpOpenRequest failed."); InternetCloseHandle(hConnect); InternetCloseHandle(hSession); return; }
 
     std::string headerStr =
         "Content-Type: application/json\r\n"
@@ -370,12 +434,13 @@ void TriggerRestApiRequest() {
     BOOL sent = HttpSendRequestA(
         hRequest, headerStr.c_str(), (DWORD)headerStr.size(),
         (LPVOID)fileContent.c_str(), (DWORD)fileContent.size());
-    
+
     if (sent) {
-        std::cout << "\r> [Patching] Success! You can now start the session.                    " << std::flush;
+        SetStatus("> [Patching] Success! You can now start the session.");
+        ReleaseTopmost(); // Spiel darf jetzt wieder nach vorne
     }
     else {
-        std::cerr << "\r> [Patching] Error sending request. Windows-Error: " << GetLastError() << "       " << std::flush;
+        SetStatus("> [Patching] Error sending request. Windows-Error: " + std::to_string(GetLastError()));
     }
 
     InternetCloseHandle(hRequest);
@@ -415,40 +480,19 @@ bool CheckDllReady() {
     return (sent && statusCode == 200);
 }
 
-void BringLauncherToFront() {
-    HWND hwndConsole = GetConsoleWindow();
-    if (hwndConsole) {
-        ShowWindow(hwndConsole, SW_RESTORE);
-        SetForegroundWindow(hwndConsole);
-        Sleep(500);
-        ShowWindow(hwndConsole, SW_RESTORE);
-        SetForegroundWindow(hwndConsole);
-    }
-}
-
 void HotkeyListener() {
-    std::cout << "[Keyboard Controls]" << std::endl;
-    std::cout << "  [" << GetKeyName(g_HotkeyApply) << "] -> Apply Patch" << std::endl;
-    std::cout << "  [" << GetKeyName(g_HotkeyLauncher) << "] -> Bring Launcher up front" << std::endl;
-    std::cout << "  [" << GetKeyName(g_HotkeyQuit) << "] -> Quit Game & Launcher\n" << std::endl;
-
-    bool pPressed = false, qPressed = false;
+    bool applyPressed = false, quitPressed = false;
 
     while (g_Running) {
-        HWND hwndConsole = GetConsoleWindow();
-        if (hwndConsole) {
-            SetWindowPos(hwndConsole, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-        }
-
         if (GetAsyncKeyState(g_HotkeyApply) & 0x8000) {
-            if (!pPressed) {
-                pPressed = true;
+            if (!applyPressed) {
+                applyPressed = true;
                 BringLauncherToFront();
                 TriggerRestApiRequest();
             }
         }
         else {
-            pPressed = false;
+            applyPressed = false;
         }
 
         if (GetAsyncKeyState(g_HotkeyLauncher) & 0x8000) {
@@ -457,45 +501,18 @@ void HotkeyListener() {
         }
 
         if (GetAsyncKeyState(g_HotkeyQuit) & 0x8000) {
-            if (!qPressed) {
-                qPressed = true;
+            if (!quitPressed) {
+                quitPressed = true;
                 BringLauncherToFront();
-                std::cout << "\n\n> Really quit? (Y/N): " << std::flush;
-
-                while (true) { 
-                    if (GetAsyncKeyState('Y') & 0x8000) {
-                        std::cout << "Y\n> Closing ..." << std::endl;
-                        TerminateGameProcess(g_TargetPid);
-                        g_Running = false;
-                        break;
-                    }
-                    else if (GetAsyncKeyState('N') & 0x8000 || GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-                        std::cout << "N" << std::endl;
-                        Sleep(500);
-                        break;
-                    }
-                    Sleep(50);
-                }
+                PostMessageA(g_hwndMain, WM_CLOSE, 0, 0);
             }
         }
         else {
-            qPressed = false;
+            quitPressed = false;
         }
 
         Sleep(100);
     }
-}
-
-void PrintHackerBanner() {
-    std::cout << "\033[32m";
-    std::cout << "==============================================================\n";
-    std::cout << "  __   _  _  ____  ____     ____  ____   __  __ _  ____  ____  \n";
-    std::cout << " / _\\ ( \\/ )/ ___)(___ \\   (  _ \\(  _ \\ /  \\(  / )(  __)(  _ \\\n";
-    std::cout << "/    \\/ \\/ \\\\___ \\ / __/    ) _ ( )   /(  O ))  (  ) _)  )   /\n";
-    std::cout << "\\_/\\_/\\_)(_/(____/(____)   (____/(__\\_) \\__/(__\\_)(____)(__\\_)\n";
-    std::cout << "==============================================================\n";
-    std::cout << "AMS2Broker v1.0.0. Created by daHas (C) 2026.\n";
-    std::cout << "==============================================================\n\033[0m";
 }
 
 static void ParkMouse(HWND hwndGame) {
@@ -516,38 +533,36 @@ static void ParkMouse(HWND hwndGame) {
     Sleep(50);
 }
 
-int main(int argc, char* argv[]) {
-    SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
-
-    SetupLauncherWindow();
-
-    PrintHackerBanner();
-
+static void BrokerWorker(int argc, char** argv) {
     LoadConfiguration();
 
-    std::cout << "--------------------------------------------------------------" << std::endl;
-    std::cout << "PLEASE READ:" << std::endl;
-    std::cout << "The broker will automatically configure the settings. Wait for " << std::endl;
-    std::cout << "the confirmation. If the confirmation appears while you are" << std::endl;
-    std::cout << "NOT in 'Single Race', manually switch to 'Single Race' and press" << std::endl;
-    std::cout << "[" << GetKeyName(g_HotkeyApply) << "] on the keyboard to apply the patch. After patching" << std::endl;
-    std::cout << "and before you start, you can manually adjust the new settings." << std::endl;
-    std::cout << "--------------------------------------------------------------\n" << std::endl;
-
-    std::thread listener(HotkeyListener);
-    listener.detach();
+    Log("--------------------------------------------------------------");
+    Log("PLEASE READ:");
+    Log("The broker will automatically configure the settings. Wait for");
+    Log("the confirmation. If the confirmation appears while you are");
+    Log("NOT in 'Single Race', manually switch to 'Single Race' and press");
+    Log("[" + std::string(GetKeyName(g_HotkeyApply)) + "] on the keyboard to apply the patch. After patching");
+    Log("and before you start, you can manually adjust the new settings.");
+    Log("--------------------------------------------------------------");
+    Log("");
+    Log("[Keyboard Controls]");
+    Log("  [" + std::string(GetKeyName(g_HotkeyApply)) + "] -> Apply Patch");
+    Log("  [" + std::string(GetKeyName(g_HotkeyLauncher)) + "] -> Bring Launcher up front");
+    Log("  [" + std::string(GetKeyName(g_HotkeyQuit)) + "] -> Quit Game & Launcher");
+    Log("");
 
     g_AuthToken = GenerateRandomToken();
     if (g_AuthToken.empty()) {
-        std::cerr << "Fatal: Could not generate secure auth token. Abort." << std::endl;
-        Sleep(4000);
-        return 1;
+        ExitLater("Fatal: Could not generate secure auth token. Abort.", 4000);
+        return;
     }
     if (!WriteTokenToSharedMemory(g_AuthToken)) {
-        std::cerr << "Warning: Shared memory for auth token failed." << std::endl;
-        Sleep(4000);
-        return 1;
+        ExitLater("Warning: Shared memory for auth token failed.", 4000);
+        return;
     }
+
+    std::thread listener(HotkeyListener);
+    listener.detach();
 
     wchar_t exePathW[MAX_PATH];
     GetModuleFileNameW(NULL, exePathW, MAX_PATH);
@@ -555,7 +570,7 @@ int main(int argc, char* argv[]) {
     fs::path templatesDir = launcherDir / L"Templates";
     std::wstring relativeConfigPath = L"quick-race-example.json";
 
-    for (int i = 1; i < argc; i++) { 
+    for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
         if ((arg == "--template" || arg == "-t") && i + 1 < argc) {
             std::string pathStr = argv[i + 1];
@@ -571,21 +586,15 @@ int main(int argc, char* argv[]) {
     g_ConfigPath = (templatesDir / relativeConfigPath).wstring();
 
     if (!fs::exists(g_ConfigPath)) {
-        std::wcerr << "Error: Template not found: " << g_ConfigPath << ".\nClosing ..." << std::endl;
-        Sleep(4000);
-        return 1;
-    }
-    else {
-        //std::wcout << "Template: " << relativeConfigPath << std::endl;
+        ExitLater("Error: Template not found: " + ToAnsi(g_ConfigPath) + ". Closing ...", 4000);
+        return;
     }
 
     std::wstring appPath = GetDefaultAms2Path();
 
     if (!fs::exists(appPath)) {
-        std::cerr << "Error: Game not found at this location:\n"
-            << std::string(appPath.begin(), appPath.end()) << std::endl;
-        Sleep(4000);
-        return 1;
+        ExitLater("Error: Game not found at this location: " + ToAnsi(appPath), 4000);
+        return;
     }
 
     std::wstring workingDirW = fs::path(appPath).parent_path().wstring();
@@ -594,14 +603,13 @@ int main(int argc, char* argv[]) {
     PROCESS_INFORMATION pi = {};
 
     if (!CreateProcessW(appPath.data(), NULL, NULL, NULL, FALSE, 0, NULL, workingDirW.c_str(), &si, &pi)) {
-        std::cerr << "Error launching AMS2! Windows-Error-Code: " << GetLastError() << std::endl;
-        Sleep(3000);
-        return 1;
+        ExitLater("Error launching AMS2! Windows-Error-Code: " + std::to_string(GetLastError()), 3000);
+        return;
     }
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
-    std::cout << "\rStarting AUTOMOBILISTA2 ...                         " << std::flush;
+    SetStatus("Starting AUTOMOBILISTA2 ...");
 
     DWORD targetPid = 0;
     DWORD lastPid = 0;
@@ -610,15 +618,10 @@ int main(int argc, char* argv[]) {
     const int requiredStable = 3;
     const int timeoutSeconds = 90;
 
-    for (int t = 0; t < timeoutSeconds; t++) {
+    for (int t = 0; t < timeoutSeconds && g_Running; t++) {
         HWND hwndCheck = FindWindowW(NULL, L"Automobilista 2");
         if (hwndCheck && !foregroundOnce) {
-            HWND hwndConsole = GetConsoleWindow();
-            if (hwndConsole) {
-                ShowWindow(hwndConsole, SW_RESTORE);
-                SetForegroundWindow(hwndConsole);
-                SetWindowPos(hwndConsole, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-            }
+            BringLauncherToFront();
             foregroundOnce = true;
         }
 
@@ -640,30 +643,27 @@ int main(int argc, char* argv[]) {
         Sleep(1000);
     }
 
+    if (!g_Running) return;
+
     if (targetPid == 0) {
         targetPid = GetProcessIdByName(L"AMS2AVX.exe");
         if (targetPid == 0) targetPid = GetProcessIdByName(L"AMS2.exe");
         if (targetPid == 0) {
-            std::cerr << "\rGame process not found. Abort.                           " << std::flush;
-            Sleep(3000);
-            return 1;
+            ExitLater("Game process not found. Abort.", 3000);
+            return;
         }
-        std::cout << "\rTimeout. Trying with PID " << targetPid << " ...         " << std::flush;
+        SetStatus("Timeout. Trying with PID " + std::to_string(targetPid) + " ...");
     }
     else {
-        std::cout << "\rGame ready (PID: " << targetPid << ").                 " << std::flush;
+        SetStatus("Game ready (PID: " + std::to_string(targetPid) + ").");
     }
     g_TargetPid = targetPid;
 
     Sleep(1000);
 
-    std::cout << "\rInjecting DLL ...                                 " << std::flush;
+    SetStatus("Injecting DLL ...");
 
-    wchar_t exePathW2[MAX_PATH];
-    GetModuleFileNameW(NULL, exePathW2, MAX_PATH);
-    fs::path launcherDir2 = fs::path(exePathW2).parent_path();
-    fs::path dllPathFs = launcherDir2 / L"PatcherAPI.dll";
-
+    fs::path dllPathFs = launcherDir / L"PatcherAPI.dll";
     std::string dllPathStr = dllPathFs.string();
     const char* dllPath = dllPathStr.c_str();
     const wchar_t* dllName = L"PatcherAPI.dll";
@@ -678,7 +678,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (!IsProcessAms2(targetPid)) {
-            std::cerr << "\rTarget process not found. Abort.                  " << std::flush;
+            SetStatus("Target process not found. Abort.");
             break;
         }
 
@@ -689,26 +689,26 @@ int main(int argc, char* argv[]) {
             success = IsModuleLoaded(targetPid, dllName);
         }
         else if (result == 2) {
-            std::cerr << "\rAbort: LoadLibrary-Thread stuck. No retry.                " << std::flush;
+            SetStatus("Abort: LoadLibrary-Thread stuck. No retry.");
             break;
         }
 
         if (!success && attempt < maxRetries) {
-            std::cout << "\rAttempt " << attempt << " failed. Next attempt in 600 ms...           " << std::flush;
+            SetStatus("Attempt " + std::to_string(attempt) + " failed. Next attempt in 600 ms...");
             Sleep(600);
         }
     }
 
     if (success) {
-        std::cout << "\rSuccess!                                         " << std::flush;
+        SetStatus("Success!");
         Sleep(600);
     }
     else {
-        std::cerr << "\rDLL injection failed! Exiting launcher.          " << std::flush;
-        return 0;
+        ExitLater("DLL injection failed! Exiting launcher.", 4000);
+        return;
     }
 
-    std::cout << "\rWaiting for main menu ...                     " << std::flush;
+    SetStatus("Waiting for main menu ...");
 
     while (g_Running && IsProcessAms2(targetPid)) {
         if (CheckDllReady()) {
@@ -733,7 +733,7 @@ int main(int argc, char* argv[]) {
 
                 SendInput(2, inputs, sizeof(INPUT)); // Enter Single Race
                 Sleep(100);
-                ClipCursor(NULL);
+                ClipCursor(NULL); // Release Cursor
                 BringLauncherToFront();
                 TriggerRestApiRequest(); // Apply Patch!
             }
@@ -744,19 +744,15 @@ int main(int argc, char* argv[]) {
         if (hwnd == NULL && targetPid != 0) {
             Sleep(1000);
             if (FindWindowW(NULL, L"Automobilista 2") == NULL && !IsProcessAms2(targetPid)) {
-                g_Running = false;
                 break;
             }
         }
         Sleep(1000);
     }
 
-    if (!g_Running) {
-        std::cout << "Game closed before reaching main menu. Exiting launcher." << std::endl;
-        return 0;
-    }
+    if (!g_Running) return;
 
-    while (IsProcessAms2(targetPid)) {
+    while (g_Running && IsProcessAms2(targetPid)) {
         HWND hwnd = FindWindowW(NULL, L"Automobilista 2");
         if (hwnd == NULL && targetPid != 0) {
             Sleep(1000);
@@ -767,13 +763,128 @@ int main(int argc, char* argv[]) {
         Sleep(2000);
     }
 
-    g_Running = false;
-    std::cout << "AMS2 closed. Exiting launcher." << std::endl;
+    if (!g_Running) return;
 
-    if (g_hAuthTokenMapping) {
-        CloseHandle(g_hAuthTokenMapping);
-        g_hAuthTokenMapping = NULL;
+    ExitLater("AMS2 closed. Exiting launcher.", 1500);
+}
+
+static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+    case WM_CREATE: {
+        g_hwndBanner = CreateWindowExA(0, "STATIC", kBanner,
+            WS_CHILD | WS_VISIBLE | SS_LEFT,
+            10, 8, 620, 130, hwnd, NULL, NULL, NULL);
+        SendMessageA(g_hwndBanner, WM_SETFONT, (WPARAM)g_hFontBanner, TRUE);
+
+        g_hwndLog = CreateWindowExA(0, "EDIT", "",
+            WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
+            10, 145, 620, 305, hwnd, NULL, NULL, NULL);
+        SendMessageA(g_hwndLog, WM_SETFONT, (WPARAM)g_hFontLog, TRUE);
+        return 0;
     }
 
-    return 0;
+    case WM_APP_REFRESH:
+        RefreshLogControl();
+        return 0;
+
+    case WM_CTLCOLORSTATIC:
+    case WM_CTLCOLOREDIT: {
+        HDC hdc = (HDC)wParam;
+        SetBkColor(hdc, kColBg);
+        SetTextColor(hdc, ((HWND)lParam == g_hwndBanner) ? kColGreen : kColText);
+        return (LRESULT)g_hbrBg;
+    }
+
+    case WM_ERASEBKGND: {
+        RECT rc;
+        GetClientRect(hwnd, &rc);
+        FillRect((HDC)wParam, &rc, g_hbrBg);
+        return 1;
+    }
+
+    case WM_CLOSE: {
+        if (g_ForceClose) {
+            DestroyWindow(hwnd);
+            return 0;
+        }
+        if (g_CloseDialogOpen.exchange(true)) return 0;
+
+        int r = MessageBoxA(hwnd,
+            "Really quit?\n\nThis also closes AUTOMOBILISTA2.",
+            "AMS2Broker",
+            MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2 | MB_TOPMOST);
+        g_CloseDialogOpen = false;
+
+        if (r == IDYES) {
+            g_Running = false;
+            TerminateGameProcess(g_TargetPid);
+            DestroyWindow(hwnd);
+        }
+        return 0;
+    }
+
+    case WM_QUERYENDSESSION:
+        return TRUE;
+
+    case WM_ENDSESSION:
+        if (wParam) {
+            g_Running = false;
+            TerminateGameProcess(g_TargetPid);
+        }
+        return 0;
+
+    case WM_DESTROY:
+        g_Running = false;
+        if (g_hAuthTokenMapping) {
+            CloseHandle(g_hAuthTokenMapping);
+            g_hAuthTokenMapping = NULL;
+        }
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProcA(hwnd, msg, wParam, lParam);
+}
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
+    g_hbrBg = CreateSolidBrush(kColBg);
+    g_hFontLog = CreateFontA(-15, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, "Consolas");
+    g_hFontBanner = CreateFontA(-14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, "Consolas");
+
+    WNDCLASSEXA wc = { sizeof(wc) };
+    wc.lpfnWndProc = WndProc;
+    wc.hInstance = hInstance;
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = g_hbrBg;
+    wc.lpszClassName = "AMS2BrokerWnd";
+    wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    if (!RegisterClassExA(&wc)) return 1;
+
+    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+    DWORD exStyle = WS_EX_TOPMOST;
+    RECT rc = { 0, 0, 560, 460 };
+    AdjustWindowRectEx(&rc, style, FALSE, exStyle);
+
+    g_hwndMain = CreateWindowExA(exStyle, "AMS2BrokerWnd", "AMS2Broker",
+        style, CW_USEDEFAULT, CW_USEDEFAULT,
+        rc.right - rc.left, rc.bottom - rc.top,
+        NULL, NULL, hInstance, NULL);
+    if (!g_hwndMain) return 1;
+
+    ShowWindow(g_hwndMain, nCmdShow);
+    UpdateWindow(g_hwndMain);
+
+    int argc = __argc;
+    char** argv = __argv;
+    std::thread worker(BrokerWorker, argc, argv);
+    worker.detach();
+
+    MSG msg;
+    while (GetMessageA(&msg, NULL, 0, 0) > 0) {
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
+    }
+
+    return (int)msg.wParam;
 }
