@@ -15,8 +15,8 @@ In the current version, it cannot automatically configure multi-class races. If 
 ## What else should you know?
 - AMS2 must be launched in “borderless” mode.
 - The AMS2Broker is for single-player mode only.
-- Settings are patched in the background and the changes are not directly visible on the screen.
-- After patching, settings can be manually overwritten by the user.
+- Settings are patched in the RAM and thus changes aren't directly visible on the screen. You have them when you start the session. 
+- After patching, the new settings can be manually overwritten by the user.
 - It is the responsibility of the developer that implements the tool to ensure that only vehicles and tracks owned by the user are loaded.
 - AMS2 must be started and stopped separately for each race.
 
@@ -165,6 +165,12 @@ http://localhost:9000/api/list/vehicles/
 http://localhost:9000/api/list/vehicle_classes/  
 http://localhost:9000/api/list/tracks/  
 http://localhost:9000/api/list/liveries/  
+
+### Retrieving race results
+
+To retrieve the race result in your app implement CREST2-AMS2. All information and download links can be found here: 
+
+https://github.com/viper4gh/CREST2-AMS2
 
 # USER GUIDE
 
