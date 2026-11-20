@@ -168,9 +168,7 @@ http://localhost:9000/api/list/liveries/
 
 ### Retrieving race results
 
-To retrieve the race result in your app implement CREST2-AMS2. All information and download links can be found here: 
-
-https://github.com/viper4gh/CREST2-AMS2
+To retrieve the race result in your app implement the Shared Memory API. You find it in AUTOMOBILISTA2/Support.
 
 # USER GUIDE
 
