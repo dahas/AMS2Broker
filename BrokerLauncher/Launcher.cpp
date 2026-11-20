@@ -37,6 +37,7 @@ const wchar_t* kSharedMemName = L"Local\\AMS2Launcher_AuthToken";
 static HWND g_hwndMain = NULL;
 static HWND g_hwndBanner = NULL;
 static HWND g_hwndLog = NULL;
+static HWND g_hwndStatus = NULL;
 static HFONT g_hFontLog = NULL;
 static HFONT g_hFontBanner = NULL;
 static HBRUSH g_hbrBg = NULL;
@@ -48,6 +49,10 @@ static std::string g_Status;
 static const COLORREF kColBg = RGB(12, 12, 12);
 static const COLORREF kColText = RGB(204, 204, 204);
 static const COLORREF kColGreen = RGB(0, 200, 0);
+static const COLORREF kColYellow = RGB(255, 215, 0);
+static const COLORREF kColRed = RGB(230, 60, 60);
+
+static std::atomic<COLORREF> g_StatusColor(kColText);
 
 static const char* kBanner =
 "==============================================================\r\n"
@@ -79,25 +84,32 @@ static void Log(const std::string& s) {
     RequestRefresh();
 }
 
-static void SetStatus(const std::string& s) {
+static void SetStatus(const std::string& s, COLORREF col = kColText) {
     {
         std::lock_guard<std::mutex> lk(g_LogMutex);
         g_Status = s;
+        g_StatusColor = col;
     }
     RequestRefresh();
 }
 
 static void RefreshLogControl() {
-    std::string text;
+    std::string text, status;
     {
         std::lock_guard<std::mutex> lk(g_LogMutex);
-        for (const auto& l : g_Lines) { text += l; text += "\r\n"; }
-        text += g_Status;
+        for (size_t i = 0; i < g_Lines.size(); ++i) {
+            if (i) text += "\r\n";
+            text += g_Lines[i];
+        }
+        status = g_Status;
     }
     SetWindowTextA(g_hwndLog, text.c_str());
     int len = GetWindowTextLengthA(g_hwndLog);
     SendMessageA(g_hwndLog, EM_SETSEL, len, len);
     SendMessageA(g_hwndLog, EM_SCROLLCARET, 0, 0);
+
+    SetWindowTextA(g_hwndStatus, status.c_str());
+    InvalidateRect(g_hwndStatus, NULL, TRUE);
 }
 
 static std::atomic<bool> g_AlwaysOnTop(true);
@@ -403,7 +415,7 @@ std::wstring GetDefaultAms2Path() {
 }
 
 void TriggerRestApiRequest() {
-    SetStatus("> [Patching] Hold on! Applying configuration ...");
+    SetStatus("> [Patching] Hold on! Applying configuration ...", kColYellow);
 
     std::string fileContent = "";
     if (fs::exists(g_ConfigPath)) {
@@ -413,18 +425,18 @@ void TriggerRestApiRequest() {
         fileContent = buffer.str();
     }
     else {
-        SetStatus("> [Patching] Failed: Template file not found under: " + ToAnsi(g_ConfigPath));
+        SetStatus("> [Patching] Failed: Template file not found under: " + ToAnsi(g_ConfigPath), kColRed);
         return;
     }
 
     HINTERNET hSession = InternetOpenA("AMS2Launcher/1.0", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
-    if (!hSession) { SetStatus("> InternetOpen failed."); return; }
+    if (!hSession) { SetStatus("> [Patching] Failed: InternetOpen failed.", kColRed); return; }
 
     HINTERNET hConnect = InternetConnectA(hSession, "127.0.0.1", g_ServerPort, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
-    if (!hConnect) { SetStatus("> InternetConnect failed."); InternetCloseHandle(hSession); return; }
+    if (!hConnect) { SetStatus("> [Patching] Failed: InternetConnect failed.", kColRed); InternetCloseHandle(hSession); return; }
 
     HINTERNET hRequest = HttpOpenRequestA(hConnect, "POST", "/patch", NULL, NULL, NULL, 0, 0);
-    if (!hRequest) { SetStatus("> HttpOpenRequest failed."); InternetCloseHandle(hConnect); InternetCloseHandle(hSession); return; }
+    if (!hRequest) { SetStatus("> [Patching] Failed: HttpOpenRequest failed.", kColRed); InternetCloseHandle(hConnect); InternetCloseHandle(hSession); return; }
 
     std::string headerStr =
         "Content-Type: application/json\r\n"
@@ -436,11 +448,11 @@ void TriggerRestApiRequest() {
         (LPVOID)fileContent.c_str(), (DWORD)fileContent.size());
 
     if (sent) {
-        SetStatus("> [Patching] Success! You can now start the session.");
-        ReleaseTopmost(); // Spiel darf jetzt wieder nach vorne
+        SetStatus("> [Patching] Success! You can now start the session.", kColGreen);
+        ReleaseTopmost();
     }
     else {
-        SetStatus("> [Patching] Error sending request. Windows-Error: " + std::to_string(GetLastError()));
+        SetStatus("> [Patching] Failed: Error sending request. Windows-Error: " + std::to_string(GetLastError()), kColRed);
     }
 
     InternetCloseHandle(hRequest);
@@ -778,8 +790,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
         g_hwndLog = CreateWindowExA(0, "EDIT", "",
             WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
-            10, 145, 620, 305, hwnd, NULL, NULL, NULL);
+            10, 145, 620, 275, hwnd, NULL, NULL, NULL);
         SendMessageA(g_hwndLog, WM_SETFONT, (WPARAM)g_hFontLog, TRUE);
+
+        g_hwndStatus = CreateWindowExA(0, "STATIC", "",
+            WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOPREFIX,
+            10, 428, 540, 24, hwnd, NULL, NULL, NULL);
+        SendMessageA(g_hwndStatus, WM_SETFONT, (WPARAM)g_hFontLog, TRUE);
         return 0;
     }
 
@@ -790,8 +807,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     case WM_CTLCOLORSTATIC:
     case WM_CTLCOLOREDIT: {
         HDC hdc = (HDC)wParam;
+        COLORREF col = kColText;
+        if ((HWND)lParam == g_hwndBanner) col = kColGreen;
+        else if ((HWND)lParam == g_hwndStatus) col = g_StatusColor;
         SetBkColor(hdc, kColBg);
-        SetTextColor(hdc, ((HWND)lParam == g_hwndBanner) ? kColGreen : kColText);
+        SetTextColor(hdc, col);
         return (LRESULT)g_hbrBg;
     }
 
@@ -848,7 +868,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     HANDLE hSingleInstance = CreateMutexW(NULL, TRUE, L"Local\\AMS2Broker_SingleInstance");
     if (hSingleInstance && GetLastError() == ERROR_ALREADY_EXISTS) {
-        // Bereits laufende Instanz nach vorne holen und diese hier beenden
         HWND hwndOther = FindWindowA("AMS2BrokerWnd", NULL);
         if (hwndOther) {
             ShowWindow(hwndOther, SW_RESTORE);
