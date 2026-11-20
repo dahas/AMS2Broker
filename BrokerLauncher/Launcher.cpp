@@ -846,6 +846,20 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
+    HANDLE hSingleInstance = CreateMutexW(NULL, TRUE, L"Local\\AMS2Broker_SingleInstance");
+    if (hSingleInstance && GetLastError() == ERROR_ALREADY_EXISTS) {
+        // Bereits laufende Instanz nach vorne holen und diese hier beenden
+        HWND hwndOther = FindWindowA("AMS2BrokerWnd", NULL);
+        if (hwndOther) {
+            ShowWindow(hwndOther, SW_RESTORE);
+            SetForegroundWindow(hwndOther);
+        }
+        MessageBoxA(NULL, "AMS2Broker is already running.", "AMS2Broker",
+            MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
+        CloseHandle(hSingleInstance);
+        return 0;
+    }
+
     g_hbrBg = CreateSolidBrush(kColBg);
     g_hFontLog = CreateFontA(-15, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
         OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, "Consolas");
