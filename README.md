@@ -166,6 +166,12 @@ http://localhost:9000/api/list/vehicle_classes/
 http://localhost:9000/api/list/tracks/  
 http://localhost:9000/api/list/liveries/  
 
+### Retrieving race results
+
+To retrieve the race result in your app implement CREST2-AMS2. All information and download links can be found here: 
+
+https://github.com/viper4gh/CREST2-AMS2
+
 # USER GUIDE
 
 As soon as the user clicks the button in your app and goes to the race, the launcher opens and starts the game. The first time this happens, Windows SmartScreen will likely pop up and block the launcher from running. The user must therefore be informed that they need to click “More Information” and then “Run anyway”.
