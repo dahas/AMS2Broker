@@ -788,14 +788,25 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             10, 8, 620, 130, hwnd, NULL, NULL, NULL);
         SendMessageA(g_hwndBanner, WM_SETFONT, (WPARAM)g_hFontBanner, TRUE);
 
+        HDC hdcMeasure = GetDC(hwnd);
+        HFONT hOldFont = (HFONT)SelectObject(hdcMeasure, g_hFontLog);
+        TEXTMETRICA tm = {};
+        GetTextMetricsA(hdcMeasure, &tm);
+        SelectObject(hdcMeasure, hOldFont);
+        ReleaseDC(hwnd, hdcMeasure);
+
+        const int logTop = 145;
+        const int logLines = 14;
+        int logHeight = tm.tmHeight * logLines + 6;
+
         g_hwndLog = CreateWindowExA(0, "EDIT", "",
             WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
-            10, 145, 620, 275, hwnd, NULL, NULL, NULL);
+            10, logTop, 620, logHeight, hwnd, NULL, NULL, NULL);
         SendMessageA(g_hwndLog, WM_SETFONT, (WPARAM)g_hFontLog, TRUE);
 
         g_hwndStatus = CreateWindowExA(0, "STATIC", "",
             WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOPREFIX,
-            10, 428, 540, 24, hwnd, NULL, NULL, NULL);
+            10, logTop + logHeight, 540, tm.tmHeight + 6, hwnd, NULL, NULL, NULL);
         SendMessageA(g_hwndStatus, WM_SETFONT, (WPARAM)g_hFontLog, TRUE);
         return 0;
     }
@@ -896,7 +907,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
 
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     DWORD exStyle = WS_EX_TOPMOST;
-    RECT rc = { 0, 0, 560, 460 };
+    RECT rc = { 0, 0, 560, 440 };
     AdjustWindowRectEx(&rc, style, FALSE, exStyle);
 
     g_hwndMain = CreateWindowExA(exStyle, "AMS2BrokerWnd", "AMS2Broker",
