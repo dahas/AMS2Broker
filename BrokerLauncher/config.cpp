@@ -5,6 +5,7 @@
 #include <fstream>
 #include <algorithm>
 #include <unordered_map>
+#include <cstdlib>
 
 namespace fs = std::filesystem;
 
@@ -13,6 +14,8 @@ int g_ServerPort = 58888;
 int g_HotkeyApply = VK_INSERT;
 int g_HotkeyLauncher = VK_HOME;
 int g_HotkeyQuit = VK_END;
+int g_SilentMode = 0;
+std::wstring g_TemplatesPath = L"Templates";
 
 static const std::unordered_map<std::string, int> vkMap = {
     { "INSERT", VK_INSERT },{ "DELETE", VK_DELETE },
@@ -150,6 +153,40 @@ void LoadHotkeyConfig() {
     }
 }
 
+void LoadLauncherConfig() {
+    std::ifstream file(GetConfigPath());
+    if (!file.is_open()) return;
+
+    std::string currentSection = "";
+    std::string line;
+
+    while (std::getline(file, line)) {
+        line = Trim(line);
+        if (line.empty() || line[0] == ';' || line[0] == '#') continue;
+
+        if (line.front() == '[' && line.back() == ']') {
+            currentSection = Trim(line.substr(1, line.size() - 2));
+            continue;
+        }
+
+        if (currentSection == "launcher") {
+            size_t eq = line.find('=');
+            if (eq != std::string::npos) {
+                std::string key = Trim(line.substr(0, eq));
+                std::string val = Trim(line.substr(eq + 1));
+
+                if (key == "silent" && !val.empty()) {
+                    int v = std::atoi(val.c_str());
+                    if (v >= 0 && v <= 2) g_SilentMode = v;
+                }
+                if (key == "templates_path" && !val.empty()) {
+                    g_TemplatesPath = fs::path(val).wstring();
+                }
+            }
+        }
+    }
+}
+
 void LoadConfiguration() {
     fs::path configPath = GetConfigPath();
     if (!fs::exists(configPath)) {
@@ -160,6 +197,7 @@ void LoadConfiguration() {
     LoadGamePathToExeConfig();
     LoadServerConfig();
     LoadHotkeyConfig();
+    LoadLauncherConfig();
 }
 
 std::string GetKeyName(int virtualKey) {

@@ -20,14 +20,18 @@ In the current version, it cannot automatically configure multi-class races. If 
 - It is the responsibility of the developer that implements the tool to ensure that only vehicles and tracks owned by the user are loaded.
 - AMS2 must be started and stopped separately for each race.
 
-## Is it safe to use the AMS2Broker?
-I developed this tool in my spare time with no financial interest. That’s why I didn’t spend money on an expensive code-signing certificate. Because of the missing certificate, Windows blocks the tool from running. To run the tool anyway, you’ll once need to click “More info” and then “Run anyway.” 
+## Is it safe to use AMS2Broker?
+This is a hobby project with no financial interest. For that reason I did not buy a code-signing certificate. Without one, Windows SmartScreen shows a warning on the first start. To run the tool anyway, click "More info" and then "Run anyway".
 
-If that seems too risky: the source code is open. You can examine it and compile the launcher and the DLL yourself. Make sure the names remain exactly the same.
+**What you can verify yourself:**
+- The source code is publicly available (see the license). You can inspect it for malicious code.
+- Download AMS2Broker ONLY from the official release page of this repository. Compare the SHA-256 checksum from the release notes with your download:
+  `Get-FileHash .\AMS2Broker.zip -Algorithm SHA256`
+- The launcher only injects a `PatcherAPI.dll` whose SHA-256 hash is built into the executable. If the DLL has been modified or replaced, the launcher shows an error and does not start the game.
 
-Additionally I’ve used a Random Access Token to prevent third-party software from silently communicating with the REST API. This also prevents malware from being injected from the outside.
+**Protection of the local API:** A random token, generated at every start, is required for every request to the REST API. This prevents other programs from sending requests to the API without knowing the token.
 
-So in my opinion, it’s as safe as it can be.
+**Limits:** These measures ensure that the files you run are the ones I published. Use at your own risk (see the license).
 
 ## Which programming languages are supported?
 All of them. The race is configured directly through the launcher. Therefore, the application that uses the AMS2Broker can be developed in any language and using any technology.

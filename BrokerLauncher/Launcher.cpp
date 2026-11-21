@@ -20,6 +20,10 @@
 
 namespace fs = std::filesystem;
 
+static const char* const kAllowedDllSha256[] = {
+    "9afb28d3dc0e75d50e791c5e0df55a065bd3dd6e9bdc9c1c2e2e6b61c5e6d378"
+};
+
 std::atomic<bool> g_Running(true);
 std::atomic<bool> g_ForceClose(false);
 std::atomic<bool> g_CloseDialogOpen(false);
@@ -54,7 +58,6 @@ static const COLORREF kColRed = RGB(230, 60, 60);
 
 static std::atomic<COLORREF> g_StatusColor(kColText);
 static std::atomic<bool> g_Hidden(false);
-static std::atomic<int> g_SilentMode(0);
 static void BringLauncherToFront();
 
 static const char* kBanner =
@@ -426,7 +429,7 @@ std::wstring GetDefaultAms2Path() {
 }
 
 void TriggerRestApiRequest() {
-    SetStatus("> [Patching] Hold on! Applying configuration ...", kColYellow);
+    SetStatus("> [Patching] Hold on! Applying configuration...", kColYellow);
 
     std::string fileContent = "";
     if (fs::exists(g_ConfigPath)) {
@@ -573,9 +576,72 @@ static void ParkMouse(HWND hwndGame) {
     Sleep(50);
 }
 
-static void BrokerWorker(int argc, char** argv) {
-    LoadConfiguration();
+static bool Sha256OfFile(HANDLE hFile, std::string& outHex) {
+    BCRYPT_ALG_HANDLE hAlg = NULL;
+    BCRYPT_HASH_HANDLE hHash = NULL;
+    bool ok = false;
 
+    if (BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, NULL, 0) != 0) return false;
+
+    DWORD objLen = 0, cb = 0;
+    BCryptGetProperty(hAlg, BCRYPT_OBJECT_LENGTH, (PUCHAR)&objLen, sizeof(objLen), &cb, 0);
+    std::vector<UCHAR> obj(objLen);
+
+    if (BCryptCreateHash(hAlg, &hHash, obj.data(), objLen, NULL, 0, 0) == 0) {
+        LARGE_INTEGER zero = {};
+        SetFilePointerEx(hFile, zero, NULL, FILE_BEGIN);
+
+        std::vector<UCHAR> buf(64 * 1024);
+        DWORD read = 0;
+        bool readOk = true;
+        while (true) {
+            if (!ReadFile(hFile, buf.data(), (DWORD)buf.size(), &read, NULL)) { readOk = false; break; }
+            if (read == 0) break;
+            if (BCryptHashData(hHash, buf.data(), read, 0) != 0) { readOk = false; break; }
+        }
+
+        UCHAR digest[32] = {};
+        if (readOk && BCryptFinishHash(hHash, digest, sizeof(digest), 0) == 0) {
+            static const char hexd[] = "0123456789abcdef";
+            outHex.clear();
+            for (int i = 0; i < 32; ++i) {
+                outHex.push_back(hexd[digest[i] >> 4]);
+                outHex.push_back(hexd[digest[i] & 0x0F]);
+            }
+            ok = true;
+        }
+        BCryptDestroyHash(hHash);
+    }
+
+    BCryptCloseAlgorithmProvider(hAlg, 0);
+    return ok;
+}
+
+static HANDLE OpenVerifiedDll(const std::wstring& path, std::string& err) {
+    HANDLE h = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (h == INVALID_HANDLE_VALUE) {
+        err = "Cannot open PatcherAPI.dll. Windows-Error: " + std::to_string(GetLastError());
+        return INVALID_HANDLE_VALUE;
+    }
+
+    std::string hex;
+    if (!Sha256OfFile(h, hex)) {
+        CloseHandle(h);
+        err = "Could not compute SHA-256 of PatcherAPI.dll.";
+        return INVALID_HANDLE_VALUE;
+    }
+
+    for (const char* allowed : kAllowedDllSha256) {
+        if (_stricmp(hex.c_str(), allowed) == 0) return h;
+    }
+
+    CloseHandle(h);
+    err = "PatcherAPI.dll is not trusted. SHA-256: " + hex;
+    return INVALID_HANDLE_VALUE;
+}
+
+static void BrokerWorker(int argc, char** argv) {
     Log("--------------------------------------------------------------");
     Log("PLEASE READ:");
     Log("The broker will automatically configure the settings. Wait for");
@@ -607,7 +673,13 @@ static void BrokerWorker(int argc, char** argv) {
     wchar_t exePathW[MAX_PATH];
     GetModuleFileNameW(NULL, exePathW, MAX_PATH);
     fs::path launcherDir = fs::path(exePathW).parent_path();
-    fs::path templatesDir = launcherDir / L"Templates";
+    fs::path templatesPath(g_TemplatesPath);
+    if (templatesPath.has_root_name() || templatesPath.has_root_directory()) {
+        ExitLater("Error: templates_path in config.ini must be relative to the launcher.", 4000);
+        return;
+    }
+    fs::path templatesDir = (launcherDir / templatesPath).lexically_normal();
+    //Log("Templates: " + ToAnsi(templatesDir.wstring()));
     std::wstring relativeConfigPath = L"quick-race-example.json";
 
     for (int i = 1; i < argc; i++) {
@@ -626,14 +698,22 @@ static void BrokerWorker(int argc, char** argv) {
     g_ConfigPath = (templatesDir / relativeConfigPath).wstring();
 
     if (!fs::exists(g_ConfigPath)) {
-        ExitLater("Error: Template not found: " + ToAnsi(g_ConfigPath) + ". Closing ...", 4000);
+        ExitLater("Error: Templates folder not found. Closing...", 4000);
         return;
     }
 
     std::wstring appPath = GetDefaultAms2Path();
 
     if (!fs::exists(appPath)) {
-        ExitLater("Error: Game not found at this location: " + ToAnsi(appPath), 4000);
+        ExitLater("Error: Game not found. Closing...", 4000);
+        return;
+    }
+
+    std::string verifyError;
+    HANDLE hDllLock = OpenVerifiedDll((launcherDir / L"PatcherAPI.dll").wstring(), verifyError);
+    if (hDllLock == INVALID_HANDLE_VALUE) {
+        Log(verifyError);
+        ExitLater("DLL verification failed! AMS2 was not started.", 6000);
         return;
     }
 
@@ -649,7 +729,7 @@ static void BrokerWorker(int argc, char** argv) {
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
-    SetStatus("Starting AUTOMOBILISTA2 ...");
+    SetStatus("Starting AUTOMOBILISTA2...");
 
     DWORD targetPid = 0;
     DWORD lastPid = 0;
@@ -692,7 +772,7 @@ static void BrokerWorker(int argc, char** argv) {
             ExitLater("Game process not found. Abort.", 3000);
             return;
         }
-        SetStatus("Timeout. Trying with PID " + std::to_string(targetPid) + " ...");
+        SetStatus("Timeout. Trying with PID " + std::to_string(targetPid) + "...");
     }
     else {
         SetStatus("Game ready (PID: " + std::to_string(targetPid) + ").");
@@ -701,7 +781,7 @@ static void BrokerWorker(int argc, char** argv) {
 
     Sleep(1000);
 
-    SetStatus("Injecting DLL ...");
+    SetStatus("Injecting DLL...");
 
     fs::path dllPathFs = launcherDir / L"PatcherAPI.dll";
     std::string dllPathStr = dllPathFs.string();
@@ -748,7 +828,7 @@ static void BrokerWorker(int argc, char** argv) {
         return;
     }
 
-    SetStatus("Waiting for main menu ...");
+    SetStatus("Waiting for main menu...");
 
     while (g_Running && IsProcessAms2(targetPid)) {
         if (CheckDllReady()) {
@@ -904,43 +984,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     return DefWindowProcA(hwnd, msg, wParam, lParam);
 }
 
-static std::string TrimString(const std::string& s) {
-    size_t b = s.find_first_not_of(" \t\r\n");
-    if (b == std::string::npos) return "";
-    size_t e = s.find_last_not_of(" \t\r\n");
-    return s.substr(b, e - b + 1);
-}
-
-static int ReadSilentMode() {
-    wchar_t exePath[MAX_PATH];
-    GetModuleFileNameW(NULL, exePath, MAX_PATH);
-    fs::path iniPath = fs::path(exePath).parent_path() / L"config.ini";
-
-    std::ifstream f(iniPath);
-    if (!f) return 0;
-
-    std::string line;
-    bool first = true;
-    while (std::getline(f, line)) {
-        if (first && line.compare(0, 3, "\xEF\xBB\xBF") == 0) line.erase(0, 3);
-        first = false;
-
-        size_t c = line.find_first_of(";#");
-        if (c != std::string::npos) line.erase(c);
-
-        size_t eq = line.find('=');
-        if (eq == std::string::npos) continue;
-
-        std::string key = TrimString(line.substr(0, eq));
-        std::string val = TrimString(line.substr(eq + 1));
-        if (_stricmp(key.c_str(), "silent") == 0) {
-            int v = atoi(val.c_str());
-            return (v >= 0 && v <= 2) ? v : 0;
-        }
-    }
-    return 0;
-}
-
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     HANDLE hSingleInstance = CreateMutexW(NULL, TRUE, L"Local\\AMS2Broker_SingleInstance");
     if (hSingleInstance && GetLastError() == ERROR_ALREADY_EXISTS) {
@@ -981,7 +1024,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
         NULL, NULL, hInstance, NULL);
     if (!g_hwndMain) return 1;
 
-    g_SilentMode = ReadSilentMode();
+    LoadConfiguration();
     g_Hidden = g_SilentMode != 0;
 
     if (!g_Hidden) {
