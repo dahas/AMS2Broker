@@ -53,6 +53,9 @@ static const COLORREF kColYellow = RGB(255, 215, 0);
 static const COLORREF kColRed = RGB(230, 60, 60);
 
 static std::atomic<COLORREF> g_StatusColor(kColText);
+static std::atomic<bool> g_Hidden(false);
+static std::atomic<int> g_SilentMode(0);
+static void BringLauncherToFront();
 
 static const char* kBanner =
 "==============================================================\r\n"
@@ -90,6 +93,10 @@ static void SetStatus(const std::string& s, COLORREF col = kColText) {
         g_Status = s;
         g_StatusColor = col;
     }
+    if (col == kColRed && g_Hidden && g_SilentMode == 2) {
+        g_Hidden = false;
+        BringLauncherToFront();
+    }
     RequestRefresh();
 }
 
@@ -115,7 +122,7 @@ static void RefreshLogControl() {
 static std::atomic<bool> g_AlwaysOnTop(true);
 
 static void BringLauncherToFront() {
-    if (!g_hwndMain) return;
+    if (!g_hwndMain || g_Hidden) return;
     ShowWindow(g_hwndMain, SW_RESTORE);
     SetWindowPos(g_hwndMain, g_AlwaysOnTop ? HWND_TOPMOST : HWND_TOP, 0, 0, 0, 0,
         SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
@@ -128,7 +135,11 @@ static void ReleaseTopmost() {
         SetWindowPos(g_hwndMain, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 }
 
-static void ExitLater(const std::string& msg, int delayMs) {
+static void ExitLater(const std::string& msg, int delayMs, bool revealIfHidden = true) {
+    if (revealIfHidden && g_Hidden && g_SilentMode == 2) {
+        g_Hidden = false;
+        BringLauncherToFront();
+    }
     SetStatus(msg);
     Sleep(delayMs);
     g_Running = false;
@@ -448,6 +459,10 @@ void TriggerRestApiRequest() {
         (LPVOID)fileContent.c_str(), (DWORD)fileContent.size());
 
     if (sent) {
+        if (g_Hidden && g_SilentMode == 2) {
+            g_Hidden = false;
+            BringLauncherToFront();
+        }
         SetStatus("> [Patching] Success! You can now start the session.", kColGreen);
         ReleaseTopmost();
     }
@@ -508,6 +523,7 @@ void HotkeyListener() {
         }
 
         if (GetAsyncKeyState(g_HotkeyLauncher) & 0x8000) {
+            if (g_SilentMode != 1) g_Hidden = false;
             BringLauncherToFront();
             Sleep(250);
         }
@@ -525,6 +541,18 @@ void HotkeyListener() {
 
         Sleep(100);
     }
+}
+
+static void FocusWindow(HWND hwnd) {
+    HWND fg = GetForegroundWindow();
+    DWORD fgThread = fg ? GetWindowThreadProcessId(fg, NULL) : 0;
+    DWORD myThread = GetCurrentThreadId();
+    bool attached = false;
+    if (fgThread && fgThread != myThread)
+        attached = AttachThreadInput(myThread, fgThread, TRUE) != FALSE;
+    SetForegroundWindow(hwnd);
+    if (attached)
+        AttachThreadInput(myThread, fgThread, FALSE);
 }
 
 static void ParkMouse(HWND hwndGame) {
@@ -727,7 +755,7 @@ static void BrokerWorker(int argc, char** argv) {
             Sleep(500);
             HWND hwndGame = FindWindowW(NULL, L"Automobilista 2");
             if (hwndGame) {
-                SetForegroundWindow(hwndGame);
+                FocusWindow(hwndGame);
                 ParkMouse(hwndGame); // Avoid Mouse hovering
                 Sleep(300);
 
@@ -777,7 +805,7 @@ static void BrokerWorker(int argc, char** argv) {
 
     if (!g_Running) return;
 
-    ExitLater("AMS2 closed. Exiting launcher.", 1500);
+    ExitLater("AMS2 closed. Exiting launcher.", 1500, false);
 }
 
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -876,6 +904,43 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     return DefWindowProcA(hwnd, msg, wParam, lParam);
 }
 
+static std::string TrimString(const std::string& s) {
+    size_t b = s.find_first_not_of(" \t\r\n");
+    if (b == std::string::npos) return "";
+    size_t e = s.find_last_not_of(" \t\r\n");
+    return s.substr(b, e - b + 1);
+}
+
+static int ReadSilentMode() {
+    wchar_t exePath[MAX_PATH];
+    GetModuleFileNameW(NULL, exePath, MAX_PATH);
+    fs::path iniPath = fs::path(exePath).parent_path() / L"config.ini";
+
+    std::ifstream f(iniPath);
+    if (!f) return 0;
+
+    std::string line;
+    bool first = true;
+    while (std::getline(f, line)) {
+        if (first && line.compare(0, 3, "\xEF\xBB\xBF") == 0) line.erase(0, 3);
+        first = false;
+
+        size_t c = line.find_first_of(";#");
+        if (c != std::string::npos) line.erase(c);
+
+        size_t eq = line.find('=');
+        if (eq == std::string::npos) continue;
+
+        std::string key = TrimString(line.substr(0, eq));
+        std::string val = TrimString(line.substr(eq + 1));
+        if (_stricmp(key.c_str(), "silent") == 0) {
+            int v = atoi(val.c_str());
+            return (v >= 0 && v <= 2) ? v : 0;
+        }
+    }
+    return 0;
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     HANDLE hSingleInstance = CreateMutexW(NULL, TRUE, L"Local\\AMS2Broker_SingleInstance");
     if (hSingleInstance && GetLastError() == ERROR_ALREADY_EXISTS) {
@@ -916,8 +981,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
         NULL, NULL, hInstance, NULL);
     if (!g_hwndMain) return 1;
 
-    ShowWindow(g_hwndMain, nCmdShow);
-    UpdateWindow(g_hwndMain);
+    g_SilentMode = ReadSilentMode();
+    g_Hidden = g_SilentMode != 0;
+
+    if (!g_Hidden) {
+        ShowWindow(g_hwndMain, nCmdShow);
+        UpdateWindow(g_hwndMain);
+    }
 
     int argc = __argc;
     char** argv = __argv;
