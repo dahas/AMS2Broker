@@ -92,6 +92,9 @@ The launcher accepts the following flags:
 --placeholders / -p
 ```
 
+#### Important Note:
+Incorrect or missing values in the templates can lead to unpredictable behavior in the game.
+
 ### Examples
 Here are examples of how to implement the AMS2Broker in different languages. They are not tested, but it should work something like this:
 
