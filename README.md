@@ -63,7 +63,7 @@ The **quick-race** example omits many parameters. This means you only *override 
 
 To avoid having to create separate templates for each championship or series of races, you can use *placeholders*. Take a look at the **placeholders** example for more information.
 
-You can save your own templates in any folder within your app. Enter the path relative to the launcher in <code>config.ini</code>.
+You can save your own templates in any folder within your app. Just enter the new path relative to the launcher in <code>config.ini</code>.
 
 Here's how to pass your template to the launcher and start the race from your app:
 
