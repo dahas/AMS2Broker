@@ -50,7 +50,7 @@ The AMS2Broker is a tool for automatically configuring a 'single race'. It offer
 Download the latest version from [here](https://github.com/dahas/AMS2Broker/releases/latest/download/AMS2Broker.zip) and extract it directly into your app's directory.
 
 ### Templates
-All races are configured using JSON templates. The template files must be stored in the <code>Path\To\Ams2Broker\Templates</code> directory.
+All races are configured using JSON templates. The template files are stored in the <code>Path\To\Ams2Broker\Templates</code> directory.
 
 The Templates folder contains 3 examples:  
 - full-example.json  
@@ -62,6 +62,8 @@ To familiarize yourself with the *complete configuration* and all parameters, yo
 The **quick-race** example omits many parameters. This means you only *override certain settings*, while others remain as the user previously set them. This for example might be a good idea in terms of AI settings.
 
 To avoid having to create separate templates for each championship or series of races, you can use *placeholders*. Take a look at the **placeholders** example for more information.
+
+You can save your own templates in any folder within your app. Enter the path relative to the launcher in <code>config.ini</code>.
 
 Here's how to pass your template to the launcher and start the race from your app:
 
