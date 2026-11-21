@@ -1,7 +1,7 @@
 # AMS2Broker
 
 ## What is it?
-The AMS2Broker is a tool that enables the automatic configuration of a single race in AUTOMOBILISTA2 (AMS2) from any external application.
+The AMS2Broker is a tool that enables the automatic configuration of a 'single race' in AUTOMOBILISTA2 (AMS2) from any external application.
 
 ## Who needs it and why?
 It is intended for modders and application developers who want to create their own championships, special scenarios, and/or complex careers based on AUTOMOBILISTA2.
@@ -36,7 +36,7 @@ All of them. The race is configured directly through the launcher. Therefore, th
 Yes, they can, but this requires the developer to implement a feature that loads the additional files into their app.
 
 ## In summary:
-The AMS2Broker is a tool for automatically configuring a single race. It offers maximum security and convenience for the user and maximum flexibility for the developer.
+The AMS2Broker is a tool for automatically configuring a 'single race'. It offers maximum security and convenience for the user and maximum flexibility for the developer.
 
 <hr>
 
@@ -174,11 +174,17 @@ To retrieve the race result in your app implement the Shared Memory API. You fin
 
 As soon as the user clicks the button in your app and goes to the race, the launcher opens and starts the game. The first time this happens, Windows SmartScreen will likely pop up and block the launcher from running. The user must therefore be informed that they need to click “More Information” and then “Run anyway”.
 
-The game launches directly into the single race and applies the patch. If entering the single race fails for some reason and the patch is applied outside of it, the user must enter the single race manually and press the INSERT key on the keyboard to apply the patch again. After the launcher has confirmed the process, they can start the race.
+Due to this additional interaction, there is a high probability that the patching process — when executed for the first time — might occur at the wrong moment, while still reporting the operation as successful. This does not cause any issues, but it does require the user to manually enter a 'single race' within the game and re-run the patch by pressing the INSERT key.
+
+To avoid patching in the wrong moment and at the wrong place the user must LEAVE THE MOUSE ALONE during the startup process and let the Broker do the work.
+
+Normally the game launches directly into the 'single race' and the launcher applies the patch. After confirmation, the user can start the race.
+
+If the patching goes well all the time the user can make the AMS2Broker completely invisible. This can be set in the <code>config.ini</code>. This file is located in the Ams2Broker directory.
 
 ### Troubleshooting:
 
-There is a `config.ini` file in the Ams2Broker directory in which the user can make certain changes if things doesn't work as expected. 
+In the `config.ini` the user can also make certain changes if things doesn't work as expected. 
 
 ##### Game not found:
 The path to AUTOMOBILISTA2 can be entered there if the launcher cannot find the game automatically. 
