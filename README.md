@@ -1,7 +1,7 @@
 # AMS2Broker
 
 ## What is it?
-The AMS2Broker is a tool that enables the automatic configuration of a 'single race' in AUTOMOBILISTA2 (AMS2) from any external application.
+The AMS2Broker is a tool that enables the automatic configuration of a 'single race' (custom event) in AUTOMOBILISTA2 (AMS2) from any application.
 
 ## Who needs it and why?
 It is intended for modders and application developers who want to create their own championships, special scenarios, and/or complex careers based on AUTOMOBILISTA2.
@@ -9,7 +9,7 @@ It is intended for modders and application developers who want to create their o
 ## How does it work?
 The AMS2Broker consists of two parts: a launcher (Launcher.exe) and a DLL (PatcherAPI.dll). The launcher controls the game and injects the DLL. The DLL then acts as a REST API. It receives the configuration and patches the game with the corresponding settings at the click of a button.
 
-## What can’t the AMS2Broker do?
+## What can the AMS2Broker NOT do?
 In the current version, it cannot automatically configure multi-class races. If multi-class races are required, the user must configure these settings manually - AFTER he applied the patch!
 
 ## What else should you know?
@@ -20,16 +20,16 @@ In the current version, it cannot automatically configure multi-class races. If 
 - It is the responsibility of the developer that implements the tool to ensure that only vehicles and tracks owned by the user are loaded.
 - AMS2 must be started and stopped separately for each race.
 
-## Is it safe to use AMS2Broker?
-This is a hobby project with no financial interest. For that reason I did not buy a code-signing certificate. Without one, Windows SmartScreen shows a warning on the first start. To run the tool anyway, click "More info" and then "Run anyway".
+## Is it safe to use the AMS2Broker?
+This is a hobby project with no financial interest. For that reason I did not buy a code-signing certificate. Without one, Windows SmartScreen shows a warning when you start the launcher directly for the first time. To run the tool anyway, click "More info" and then "Run anyway". If you start the launcher from within your app, there's a good chance that the SmartScreen won't pop up. 
 
 **What you can verify yourself:**
 - The source code is publicly available (see the license). You can inspect it for malicious code.
-- Download AMS2Broker ONLY from the official release page of this repository. Compare the SHA-256 checksum from the release notes with your download:
+- Download the AMS2Broker ONLY from the official release page of this repository. Compare the SHA-256 checksum from the release notes with your download:
   `Get-FileHash .\AMS2Broker.zip -Algorithm SHA256`
 - The launcher only injects a `PatcherAPI.dll` whose SHA-256 hash is built into the executable. If the DLL has been modified or replaced, the launcher shows an error and does not start the game.
 
-**Protection of the local API:** A random token, generated at every start, is required for every request to the REST API. This prevents other programs from sending requests to the API without knowing the token.
+**Protection of the local API:** A random token, generated at every start, is required and automatically applied for every request to the REST API. This prevents third party programs from sending requests to the API.
 
 **Limits:** These measures ensure that the files you run are the ones I published. Use at your own risk (see the license).
 
