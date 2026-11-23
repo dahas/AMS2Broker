@@ -4,7 +4,7 @@ name: Create Version Tag
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - 'version.json'
 
