@@ -191,6 +191,8 @@ Normally the game launches directly into the 'single race' and the launcher appl
 
 If the patching goes well all the time the user can make the AMS2Broker completely invisible. This can be set in the <code>config.ini</code>. This file is located in the Ams2Broker directory.
 
+After the race has finished and the result is complete, the user can press END on the keyboard. This immediately shuts down AMS2 and the Broker. The user then finds himself in your App again. 
+
 ### Troubleshooting:
 
 In the `config.ini` the user can also make certain changes if things doesn't work as expected. 
