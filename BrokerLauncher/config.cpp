@@ -14,7 +14,7 @@ int g_ServerPort = 58888;
 int g_HotkeyApply = VK_INSERT;
 int g_HotkeyLauncher = VK_HOME;
 int g_HotkeyQuit = VK_END;
-int g_SilentMode = 1;
+int g_Visibility = 1;
 std::wstring g_TemplatesPath = L"Templates";
 
 static const std::unordered_map<std::string, int> vkMap = {
@@ -175,9 +175,9 @@ void LoadLauncherConfig() {
                 std::string key = Trim(line.substr(0, eq));
                 std::string val = Trim(line.substr(eq + 1));
 
-                if (key == "silent" && !val.empty()) {
+                if (key == "visibility" && !val.empty()) {
                     int v = std::atoi(val.c_str());
-                    if (v >= 0 && v <= 2) g_SilentMode = v;
+                    if (v >= 0 && v <= 2) g_Visibility = v;
                 }
                 if (key == "templates_path" && !val.empty()) {
                     g_TemplatesPath = fs::path(val).wstring();

@@ -96,7 +96,7 @@ static void SetStatus(const std::string& s, COLORREF col = kColText) {
         g_Status = s;
         g_StatusColor = col;
     }
-    if (col == kColRed && g_Hidden && g_SilentMode == 2) {
+    if (col == kColRed && g_Hidden && g_Visibility == 2) {
         g_Hidden = false;
         BringLauncherToFront();
     }
@@ -139,7 +139,7 @@ static void ReleaseTopmost() {
 }
 
 static void ExitLater(const std::string& msg, int delayMs, bool revealIfHidden = true) {
-    if (revealIfHidden && g_Hidden && g_SilentMode == 2) {
+    if (revealIfHidden && g_Hidden && g_Visibility == 2) {
         g_Hidden = false;
         BringLauncherToFront();
     }
@@ -462,7 +462,7 @@ void TriggerRestApiRequest() {
         (LPVOID)fileContent.c_str(), (DWORD)fileContent.size());
 
     if (sent) {
-        if (g_Hidden && g_SilentMode == 2) {
+        if (g_Hidden && g_Visibility == 2) {
             g_Hidden = false;
             BringLauncherToFront();
         }
@@ -526,7 +526,7 @@ void HotkeyListener() {
         }
 
         if (GetAsyncKeyState(g_HotkeyLauncher) & 0x8000) {
-            if (g_SilentMode > 0) g_Hidden = false;
+            if (g_Visibility > 0) g_Hidden = false;
             SetStatus("");
             BringLauncherToFront();
             Sleep(250);
@@ -1027,7 +1027,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     if (!g_hwndMain) return 1;
 
     LoadConfiguration();
-    g_Hidden = g_SilentMode != 1;
+    g_Hidden = g_Visibility != 1;
 
     if (!g_Hidden) {
         ShowWindow(g_hwndMain, nCmdShow);
