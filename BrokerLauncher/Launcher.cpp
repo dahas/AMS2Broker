@@ -526,7 +526,7 @@ void HotkeyListener() {
         }
 
         if (GetAsyncKeyState(g_HotkeyLauncher) & 0x8000) {
-            if (g_SilentMode != 0) g_Hidden = false;
+            if (g_SilentMode > 0) g_Hidden = false;
             SetStatus("");
             BringLauncherToFront();
             Sleep(250);
@@ -1027,7 +1027,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     if (!g_hwndMain) return 1;
 
     LoadConfiguration();
-    g_Hidden = g_SilentMode == 0;
+    g_Hidden = g_SilentMode != 1;
 
     if (!g_Hidden) {
         ShowWindow(g_hwndMain, nCmdShow);

@@ -14,7 +14,7 @@ int g_ServerPort = 58888;
 int g_HotkeyApply = VK_INSERT;
 int g_HotkeyLauncher = VK_HOME;
 int g_HotkeyQuit = VK_END;
-int g_SilentMode = 0;
+int g_SilentMode = 1;
 std::wstring g_TemplatesPath = L"Templates";
 
 static const std::unordered_map<std::string, int> vkMap = {
