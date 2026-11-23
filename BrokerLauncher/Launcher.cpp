@@ -67,7 +67,7 @@ static const char* kBanner =
 "/    \\/ \\/ \\\\___ \\ / __/    ) _ ( )   /(  O ))  (  ) _)  )   /\r\n"
 "\\_/\\_/\\_)(_/(____/(____)   (____/(__\\_) \\__/(__\\_)(____)(__\\_)\r\n"
 "==============================================================\r\n"
-" AMS2Broker v1.0.0. Created by daHas (C) 2026.\r\n"
+" AMS2Broker " APP_VERSION ". Created by daHas (C) 2026.\r\n"
 "==============================================================";
 
 static std::string ToAnsi(const std::wstring& w) {
@@ -526,7 +526,8 @@ void HotkeyListener() {
         }
 
         if (GetAsyncKeyState(g_HotkeyLauncher) & 0x8000) {
-            if (g_SilentMode != 1) g_Hidden = false;
+            if (g_SilentMode != 0) g_Hidden = false;
+            SetStatus("");
             BringLauncherToFront();
             Sleep(250);
         }
@@ -534,6 +535,7 @@ void HotkeyListener() {
         if (GetAsyncKeyState(g_HotkeyQuit) & 0x8000) {
             if (!quitPressed) {
                 quitPressed = true;
+                SetStatus("");
                 BringLauncherToFront();
                 PostMessageA(g_hwndMain, WM_CLOSE, 0, 0);
             }
@@ -1025,7 +1027,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     if (!g_hwndMain) return 1;
 
     LoadConfiguration();
-    g_Hidden = g_SilentMode != 0;
+    g_Hidden = g_SilentMode == 0;
 
     if (!g_Hidden) {
         ShowWindow(g_hwndMain, nCmdShow);
