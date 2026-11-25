@@ -58,7 +58,7 @@ static const COLORREF kColRed = RGB(230, 60, 60);
 
 static std::atomic<COLORREF> g_StatusColor(kColText);
 static std::atomic<bool> g_Hidden(false);
-static void BringLauncherToFront();
+static void BringLauncherToFront(bool activate = true);
 
 static const char* kBanner =
 "==============================================================\r\n"
@@ -124,12 +124,12 @@ static void RefreshLogControl() {
 
 static std::atomic<bool> g_AlwaysOnTop(true);
 
-static void BringLauncherToFront() {
+static void BringLauncherToFront(bool activate) {
     if (!g_hwndMain || g_Hidden) return;
-    ShowWindow(g_hwndMain, SW_RESTORE);
+    ShowWindow(g_hwndMain, activate ? SW_RESTORE : SW_SHOWNOACTIVATE);
     SetWindowPos(g_hwndMain, g_AlwaysOnTop ? HWND_TOPMOST : HWND_TOP, 0, 0, 0, 0,
-        SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-    SetForegroundWindow(g_hwndMain);
+        SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | (activate ? 0 : SWP_NOACTIVATE));
+    if (activate) SetForegroundWindow(g_hwndMain);
 }
 
 static void ReleaseTopmost() {
@@ -428,6 +428,47 @@ std::wstring GetDefaultAms2Path() {
     return g_GamePathToExe;
 }
 
+static void SendKey(WORD vk) {
+    INPUT inputs[2] = {};
+    bool extended = (vk == VK_RIGHT || vk == VK_LEFT || vk == VK_UP || vk == VK_DOWN);
+    DWORD flags = extended ? KEYEVENTF_EXTENDEDKEY : 0;
+    WORD scan = (WORD)MapVirtualKey(vk, MAPVK_VK_TO_VSC);
+
+    inputs[0].type = INPUT_KEYBOARD;
+    inputs[0].ki.wVk = vk;
+    inputs[0].ki.wScan = scan;
+    inputs[0].ki.dwFlags = flags;
+
+    inputs[1].type = INPUT_KEYBOARD;
+    inputs[1].ki.wVk = vk;
+    inputs[1].ki.wScan = scan;
+    inputs[1].ki.dwFlags = flags | KEYEVENTF_KEYUP;
+
+    SendInput(2, inputs, sizeof(INPUT));
+}
+
+static void FocusWindow(HWND hwnd);
+static bool FocusGameAndWait(HWND hwndGame, int timeoutMs);
+
+static void SendKeyHold(WORD vk, int holdMs) {
+    bool extended = (vk == VK_RIGHT || vk == VK_LEFT || vk == VK_UP || vk == VK_DOWN);
+    DWORD flags = extended ? KEYEVENTF_EXTENDEDKEY : 0;
+    WORD scan = (WORD)MapVirtualKey(vk, MAPVK_VK_TO_VSC);
+
+    INPUT down = {};
+    down.type = INPUT_KEYBOARD;
+    down.ki.wVk = vk;
+    down.ki.wScan = scan;
+    down.ki.dwFlags = flags;
+    SendInput(1, &down, sizeof(INPUT));
+
+    Sleep(holdMs);
+
+    INPUT up = down;
+    up.ki.dwFlags = flags | KEYEVENTF_KEYUP;
+    SendInput(1, &up, sizeof(INPUT));
+}
+
 void TriggerRestApiRequest() {
     SetStatus("> [Patching] Hold on! Applying configuration...", kColYellow);
 
@@ -461,13 +502,50 @@ void TriggerRestApiRequest() {
         hRequest, headerStr.c_str(), (DWORD)headerStr.size(),
         (LPVOID)fileContent.c_str(), (DWORD)fileContent.size());
 
+    DWORD statusCode = 0;
+    DWORD statusSize = sizeof(statusCode);
     if (sent) {
-        if (g_Hidden && g_Visibility == 2) {
-            g_Hidden = false;
-            BringLauncherToFront();
+        HttpQueryInfoA(hRequest, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &statusCode, &statusSize, NULL);
+    }
+    bool patched = sent && statusCode >= 200 && statusCode < 300;
+
+    if (patched) {
+        if (g_autoStart) {
+            SetStatus("> [Patching] Success! Starting session...", kColGreen);
+
+            if (g_Hidden && g_Visibility == 2) {
+                g_Hidden = false;
+                BringLauncherToFront(false);
+            }
+
+            if (g_Visibility > 0)
+                Sleep(2000);
+
+            ReleaseTopmost();
+
+            HWND hwndGame = FindWindowW(NULL, L"Automobilista 2");
+            if (hwndGame) {
+                if (g_Visibility > 0 && g_hwndMain)
+                    SetWindowPos(g_hwndMain, hwndGame, 0, 0, 0, 0,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+                if (GetForegroundWindow() != hwndGame)
+                    FocusGameAndWait(hwndGame, 5000);
+
+                SendKeyHold(VK_RSHIFT, 80);
+            }
         }
-        SetStatus("> [Patching] Success! You can now start the session.", kColGreen);
-        ReleaseTopmost();
+        else {
+            if (g_Hidden && g_Visibility == 2) {
+                g_Hidden = false;
+                BringLauncherToFront();
+            }
+            ReleaseTopmost();
+            SetStatus("> [Patching] Success! You can now start the session.", kColGreen);
+        }
+    }
+    else if (sent) {
+        SetStatus("> [Patching] Failed: Server responded with status " + std::to_string(statusCode) + ".", kColRed);
     }
     else {
         SetStatus("> [Patching] Failed: Error sending request. Windows-Error: " + std::to_string(GetLastError()), kColRed);
@@ -517,7 +595,7 @@ void HotkeyListener() {
         if (GetAsyncKeyState(g_HotkeyApply) & 0x8000) {
             if (!applyPressed) {
                 applyPressed = true;
-                BringLauncherToFront();
+                BringLauncherToFront(!g_autoStart);
                 TriggerRestApiRequest();
             }
         }
@@ -558,6 +636,21 @@ static void FocusWindow(HWND hwnd) {
     SetForegroundWindow(hwnd);
     if (attached)
         AttachThreadInput(myThread, fgThread, FALSE);
+}
+
+static bool FocusGameAndWait(HWND hwndGame, int timeoutMs) {
+    if (IsIconic(hwndGame)) ShowWindow(hwndGame, SW_RESTORE);
+
+    DWORD start = GetTickCount();
+    while (GetTickCount() - start < (DWORD)timeoutMs) {
+        FocusWindow(hwndGame);
+        Sleep(100);
+        if (GetForegroundWindow() == hwndGame && !IsIconic(hwndGame)) {
+            Sleep(500);
+            return true;
+        }
+    }
+    return false;
 }
 
 static void ParkMouse(HWND hwndGame) {
@@ -646,11 +739,11 @@ static HANDLE OpenVerifiedDll(const std::wstring& path, std::string& err) {
 static void BrokerWorker(int argc, char** argv) {
     Log("--------------------------------------------------------------");
     Log("PLEASE READ:");
-    Log("The broker will automatically configure the settings. Wait for");
-    Log("the confirmation. If the confirmation appears while you are");
-    Log("NOT in 'Single Race', manually switch to 'Single Race' and press");
-    Log("[" + std::string(GetKeyName(g_HotkeyApply)) + "] on the keyboard to apply the patch. After patching");
-    Log("and before you start, you can manually adjust the new settings.");
+    Log("Wait for the broker to patch the settings. The CHANGES ARE NOT");
+    Log("VISIBLE at first! You'll see them when the session starts. If");
+    Log("the patching is confirmed and you are NOT in 'Single Race',");
+    Log("manually enter 'Single Race' and press [" + std::string(GetKeyName(g_HotkeyApply)) + "] on the keyboard");
+    Log("to apply the patch. And please LEAVE THE MOUSE ALONE.");
     Log("--------------------------------------------------------------");
     Log("");
     Log("[Keyboard Controls]");
@@ -841,35 +934,16 @@ static void BrokerWorker(int argc, char** argv) {
                 ParkMouse(hwndGame); // Avoid Mouse hovering
                 Sleep(300);
 
-                INPUT inputs[2] = {};
-
-                inputs[0].type = INPUT_KEYBOARD;
-                inputs[0].ki.wVk = VK_RETURN;
-                inputs[0].ki.wScan = (WORD)MapVirtualKey(VK_RETURN, MAPVK_VK_TO_VSC);
-                inputs[0].ki.dwFlags = 0;
-
-                inputs[1].type = INPUT_KEYBOARD;
-                inputs[1].ki.wVk = VK_RETURN;
-                inputs[1].ki.wScan = (WORD)MapVirtualKey(VK_RETURN, MAPVK_VK_TO_VSC);
-                inputs[1].ki.dwFlags = KEYEVENTF_KEYUP;
-
-                SendInput(2, inputs, sizeof(INPUT)); // Enter Single Race
+                SendKey(VK_RETURN);
                 Sleep(100);
                 ClipCursor(NULL); // Release Cursor
-                BringLauncherToFront();
+                BringLauncherToFront(!g_autoStart);
                 TriggerRestApiRequest(); // Apply Patch!
             }
             break;
         }
 
-        HWND hwnd = FindWindowW(NULL, L"Automobilista 2");
-        if (hwnd == NULL && targetPid != 0) {
-            Sleep(1000);
-            if (FindWindowW(NULL, L"Automobilista 2") == NULL && !IsProcessAms2(targetPid)) {
-                break;
-            }
-        }
-        Sleep(1000);
+        Sleep(500);
     }
 
     if (!g_Running) return;

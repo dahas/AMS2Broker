@@ -15,6 +15,7 @@ int g_HotkeyApply = VK_INSERT;
 int g_HotkeyLauncher = VK_HOME;
 int g_HotkeyQuit = VK_END;
 int g_Visibility = 1;
+int g_autoStart = 0;
 std::wstring g_TemplatesPath = L"Templates";
 
 static const std::unordered_map<std::string, int> vkMap = {
@@ -178,6 +179,10 @@ void LoadLauncherConfig() {
                 if (key == "visibility" && !val.empty()) {
                     int v = std::atoi(val.c_str());
                     if (v >= 0 && v <= 2) g_Visibility = v;
+                }
+                if (key == "auto_start" && !val.empty()) {
+                    int s = std::atoi(val.c_str());
+                    if (s >= 0 && s <= 1) g_autoStart = s;
                 }
                 if (key == "templates_path" && !val.empty()) {
                     g_TemplatesPath = fs::path(val).wstring();
