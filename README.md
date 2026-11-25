@@ -15,8 +15,6 @@ In the current version, it cannot automatically configure multi-class races. If 
 ## What else should you know?
 - AMS2 must be launched in “borderless” mode.
 - The AMS2Broker is for single-player mode only.
-- Settings are patched in the RAM and thus changes aren't directly visible on the screen. You have them when you start the session. 
-- After patching, the new settings can be manually overwritten by the user.
 - It is the responsibility of the developer that implements the tool to ensure that only vehicles and tracks owned by the user are loaded.
 - AMS2 must be started and stopped separately for each race.
 
@@ -187,9 +185,9 @@ Due to this additional interaction, there is a high probability that the patchin
 
 To avoid patching in the wrong moment and at the wrong place the user must LEAVE THE MOUSE ALONE during the startup process and let the Broker do the work.
 
-Normally the game launches directly into the 'single race' and the launcher applies the patch. After confirmation, the user can start the race.
+Normally the game launches directly into the 'single race'. The launcher applies the patch and confirms whether it was successful or not. Since the new settings are patched in the RAM they aren't directly visible on the screen. They are visible when the user starts the session. Before the start he can manually adjust the new settings, but this is not recommended.
 
-If the patching goes well all the time the user can make the AMS2Broker completely invisible. This can be set in the <code>config.ini</code>. This file is located in the Ams2Broker directory.
+If the patching goes well all the time, the user can make the AMS2Broker completely invisible. This can be set in the <code>config.ini</code>. This file is located in the Ams2Broker directory.
 
 After the race has finished and the result is complete, the user can press END on the keyboard. This immediately shuts down AMS2 and the Broker. The user then finds himself in your App again. 
 
