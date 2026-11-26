@@ -469,7 +469,80 @@ static void SendKeyHold(WORD vk, int holdMs) {
     SendInput(1, &up, sizeof(INPUT));
 }
 
-void TriggerRestApiRequest() {
+static const int kMouseReleaseAfterStartMs = 5000;
+static const int kMouseReleaseAfterPatchMs = 1500;
+static const int kMouseParkMaxMs = 180000;
+
+static std::mutex g_MouseMutex;
+static std::atomic<bool> g_MouseParked(false);
+static std::atomic<ULONGLONG> g_MouseReleaseAt(0);
+static ULONGLONG g_MouseParkStart = 0;
+
+static bool ApplyMousePark(HWND hwndGame) {
+    if (!hwndGame || IsIconic(hwndGame)) return false;
+    RECT r;
+    if (!GetWindowRect(hwndGame, &r)) return false;
+    int x = r.left + (r.right - r.left) / 2;
+    int y = r.top + 2;
+    RECT clip = { x, y, x + 1, y + 1 };
+    POINT cur;
+    if (!GetCursorPos(&cur) || cur.x != x || cur.y != y) SetCursorPos(x, y);
+    ClipCursor(&clip);
+    return true;
+}
+
+static void StartMousePark(HWND hwndGame) {
+    std::lock_guard<std::mutex> lk(g_MouseMutex);
+    g_MouseReleaseAt = 0;
+    g_MouseParkStart = GetTickCount64();
+    if (!ApplyMousePark(hwndGame)) return;
+    g_MouseParked = true;
+
+    INPUT mv = {};
+    mv.type = INPUT_MOUSE;
+    mv.mi.dwFlags = MOUSEEVENTF_MOVE;
+    mv.mi.dx = 1;
+    SendInput(1, &mv, sizeof(INPUT));
+}
+
+static void ReleaseMouse() {
+    std::lock_guard<std::mutex> lk(g_MouseMutex);
+    g_MouseReleaseAt = 0;
+    if (g_MouseParked.exchange(false)) ClipCursor(NULL);
+}
+
+static void ScheduleMouseRelease(int delayMs) {
+    g_MouseReleaseAt = GetTickCount64() + (ULONGLONG)delayMs;
+}
+
+static void MouseGuard() {
+    while (g_Running) {
+        bool timedOut = false;
+        {
+            std::lock_guard<std::mutex> lk(g_MouseMutex);
+            if (g_MouseParked) {
+                ULONGLONG now = GetTickCount64();
+                ULONGLONG releaseAt = g_MouseReleaseAt;
+                bool scheduledDue = releaseAt != 0 && now >= releaseAt;
+                timedOut = (now - g_MouseParkStart) > (ULONGLONG)kMouseParkMaxMs;
+
+                if (scheduledDue || timedOut) {
+                    g_MouseReleaseAt = 0;
+                    g_MouseParked = false;
+                    ClipCursor(NULL);
+                }
+                else {
+                    ApplyMousePark(FindWindowW(NULL, L"Automobilista 2"));
+                }
+            }
+        }
+        if (timedOut) Log("Mouse parking timed out. Cursor released.");
+        Sleep(100);
+    }
+    ReleaseMouse();
+}
+
+static bool TriggerRestApiRequestImpl() {
     SetStatus("> [Patching] Hold on! Applying configuration...", kColYellow);
 
     std::string fileContent = "";
@@ -481,17 +554,17 @@ void TriggerRestApiRequest() {
     }
     else {
         SetStatus("> [Patching] Failed: Template file not found under: " + ToAnsi(g_ConfigPath), kColRed);
-        return;
+        return false;
     }
 
     HINTERNET hSession = InternetOpenA("AMS2Launcher/1.0", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
-    if (!hSession) { SetStatus("> [Patching] Failed: InternetOpen failed.", kColRed); return; }
+    if (!hSession) { SetStatus("> [Patching] Failed: InternetOpen failed.", kColRed); return false; }
 
     HINTERNET hConnect = InternetConnectA(hSession, "127.0.0.1", g_ServerPort, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
-    if (!hConnect) { SetStatus("> [Patching] Failed: InternetConnect failed.", kColRed); InternetCloseHandle(hSession); return; }
+    if (!hConnect) { SetStatus("> [Patching] Failed: InternetConnect failed.", kColRed); InternetCloseHandle(hSession); return false; }
 
     HINTERNET hRequest = HttpOpenRequestA(hConnect, "POST", "/patch", NULL, NULL, NULL, 0, 0);
-    if (!hRequest) { SetStatus("> [Patching] Failed: HttpOpenRequest failed.", kColRed); InternetCloseHandle(hConnect); InternetCloseHandle(hSession); return; }
+    if (!hRequest) { SetStatus("> [Patching] Failed: HttpOpenRequest failed.", kColRed); InternetCloseHandle(hConnect); InternetCloseHandle(hSession); return false; }
 
     std::string headerStr =
         "Content-Type: application/json\r\n"
@@ -554,6 +627,19 @@ void TriggerRestApiRequest() {
     InternetCloseHandle(hRequest);
     InternetCloseHandle(hConnect);
     InternetCloseHandle(hSession);
+
+    return patched;
+}
+
+void TriggerRestApiRequest() {
+    bool patched = TriggerRestApiRequestImpl();
+
+    if (!g_MouseParked) return;
+
+    if (patched)
+        ScheduleMouseRelease(g_autoStart ? kMouseReleaseAfterStartMs : kMouseReleaseAfterPatchMs);
+    else
+        ReleaseMouse();
 }
 
 bool CheckDllReady() {
@@ -604,6 +690,7 @@ void HotkeyListener() {
         }
 
         if (GetAsyncKeyState(g_HotkeyLauncher) & 0x8000) {
+            ReleaseMouse();
             if (g_Visibility > 0) g_Hidden = false;
             SetStatus("");
             BringLauncherToFront();
@@ -613,6 +700,7 @@ void HotkeyListener() {
         if (GetAsyncKeyState(g_HotkeyQuit) & 0x8000) {
             if (!quitPressed) {
                 quitPressed = true;
+                ReleaseMouse();
                 SetStatus("");
                 BringLauncherToFront();
                 PostMessageA(g_hwndMain, WM_CLOSE, 0, 0);
@@ -651,24 +739,6 @@ static bool FocusGameAndWait(HWND hwndGame, int timeoutMs) {
         }
     }
     return false;
-}
-
-static void ParkMouse(HWND hwndGame) {
-    RECT r;
-    if (!GetWindowRect(hwndGame, &r)) return;
-    int x = r.left + (r.right - r.left) / 2;
-    int y = r.top + 2;
-    SetCursorPos(x, y);
-
-    RECT clip = { x, y, x + 1, y + 1 };
-    ClipCursor(&clip);
-
-    INPUT mv = {};
-    mv.type = INPUT_MOUSE;
-    mv.mi.dwFlags = MOUSEEVENTF_MOVE;
-    mv.mi.dx = 1;
-    SendInput(1, &mv, sizeof(INPUT));
-    Sleep(50);
 }
 
 static bool Sha256OfFile(HANDLE hFile, std::string& outHex) {
@@ -741,9 +811,9 @@ static void BrokerWorker(int argc, char** argv) {
     Log("PLEASE READ:");
     Log("Wait for the broker to patch the settings. The CHANGES ARE NOT");
     Log("VISIBLE at first! You'll see them when the session starts. If");
-    Log("the patching is confirmed and you are NOT in 'Single Race',");
-    Log("manually enter 'Single Race' and press [" + std::string(GetKeyName(g_HotkeyApply)) + "] on the keyboard");
-    Log("to apply the patch. And please LEAVE THE MOUSE ALONE.");
+    Log("the patching is confirmed outside 'Single Race', or when you've");
+    Log("left the 'Single Race', (re-)enter it and press [" + std::string(GetKeyName(g_HotkeyApply)) + "] on the");
+    Log("keyboard to apply the patch again.");
     Log("--------------------------------------------------------------");
     Log("");
     Log("[Keyboard Controls]");
@@ -764,6 +834,9 @@ static void BrokerWorker(int argc, char** argv) {
 
     std::thread listener(HotkeyListener);
     listener.detach();
+
+    std::thread mouseGuard(MouseGuard);
+    mouseGuard.detach();
 
     wchar_t exePathW[MAX_PATH];
     GetModuleFileNameW(NULL, exePathW, MAX_PATH);
@@ -809,6 +882,12 @@ static void BrokerWorker(int argc, char** argv) {
     if (hDllLock == INVALID_HANDLE_VALUE) {
         Log(verifyError);
         ExitLater("DLL verification failed! AMS2 was not started.", 6000);
+        return;
+    }
+
+    if (GetProcessIdByName(L"AMS2AVX.exe") != 0 || GetProcessIdByName(L"AMS2.exe") != 0) {
+        g_Visibility = 2;
+        ExitLater("Game already running. Please close it and re-run the launcher.", 6000);
         return;
     }
 
@@ -925,26 +1004,30 @@ static void BrokerWorker(int argc, char** argv) {
 
     SetStatus("Waiting for main menu...");
 
+    HWND hwndPark = FindWindowW(NULL, L"Automobilista 2");
+    if (hwndPark) StartMousePark(hwndPark);
+
     while (g_Running && IsProcessAms2(targetPid)) {
         if (CheckDllReady()) {
             Sleep(500);
             HWND hwndGame = FindWindowW(NULL, L"Automobilista 2");
             if (hwndGame) {
                 FocusWindow(hwndGame);
-                ParkMouse(hwndGame); // Avoid Mouse hovering
+                StartMousePark(hwndGame); // Avoid Mouse hovering
                 Sleep(300);
 
                 SendKey(VK_RETURN);
                 Sleep(100);
-                ClipCursor(NULL); // Release Cursor
                 BringLauncherToFront(!g_autoStart);
-                TriggerRestApiRequest(); // Apply Patch!
+                TriggerRestApiRequest(); // Apply Patch! Cursor is released afterwards
             }
             break;
         }
 
         Sleep(500);
     }
+
+    if (!g_Running || !IsProcessAms2(targetPid)) ReleaseMouse();
 
     if (!g_Running) return;
 
@@ -1024,6 +1107,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         }
         if (g_CloseDialogOpen.exchange(true)) return 0;
 
+        ReleaseMouse();
+
         int r = MessageBoxA(hwnd,
             "Really quit?\n\nThis also closes AUTOMOBILISTA2.",
             "AMS2Broker",
@@ -1050,6 +1135,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
     case WM_DESTROY:
         g_Running = false;
+        ReleaseMouse();
         if (g_hAuthTokenMapping) {
             CloseHandle(g_hAuthTokenMapping);
             g_hAuthTokenMapping = NULL;
