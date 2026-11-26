@@ -177,7 +177,7 @@ http://localhost:9000/api/list/liveries/
 
 To retrieve the race result in your app implement the Shared Memory API. You find it in AUTOMOBILISTA2/Support.
 
-# USER GUIDE
+# USAGE GUIDE
 
 As soon as the user clicks the button in your app and goes to the race, the launcher opens and starts the game. The first time this happens, Windows SmartScreen will likely pop up and block the launcher from running. The user must therefore be informed that they need to click “More Information” and then “Run anyway”.
 
@@ -185,9 +185,9 @@ Due to this additional interaction, there is a high probability that the patchin
 
 To avoid patching in the wrong moment and at the wrong place the user must LEAVE THE MOUSE ALONE during the startup process and let the Broker do the work.
 
-Normally the game launches directly into the 'single race'. The launcher applies the patch and confirms whether it was successful or not. Since the new settings are patched in the RAM they aren't directly visible on the screen. They are visible when the user starts the session. Before the start he can manually adjust the new settings, but this is not recommended.
+Normally the game launches directly into the 'single race'. The launcher applies the patch and confirms whether it was successful or not. Since the new settings are patched in the RAM they aren't directly visible on the screen. They are visible when the user starts the session. Before the start he can manually adjust the new settings, but this is recommended only to set up multiclass races.
 
-If the patching goes well all the time, the user can make the AMS2Broker completely invisible. This can be set in the <code>config.ini</code>. This file is located in the Ams2Broker directory.
+If the patching goes well all the time, the user can make the AMS2Broker completely invisible and start the session automatically too. This can be set in the <code>config.ini</code>. This file is located in the Ams2Broker directory.
 
 After the race has finished and the result is complete, the user can press END on the keyboard. This immediately shuts down AMS2 and the Broker. The user then finds himself in your App again. 
 
