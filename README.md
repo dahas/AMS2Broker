@@ -179,13 +179,9 @@ To retrieve the race result in your app implement the Shared Memory API. You fin
 
 # USAGE GUIDE
 
-As soon as the user clicks the button in your app and goes to the race, the launcher opens and starts the game. The first time this happens, Windows SmartScreen will likely pop up and block the launcher from running. The user must therefore be informed that they need to click “More Information” and then “Run anyway”.
+As soon as the user clicks the button in your app and goes to the race, the launcher opens and starts the game. The game launches directly into 'single race' (custom event) where the launcher applies the patch and confirms whether it was successfully done or not. 
 
-Due to this additional interaction, there is a high probability that the patching process — when executed for the first time — might occur at the wrong moment, while still reporting the operation as successful. This does not cause any issues, but it does require the user to manually enter a 'single race' within the game and re-run the patch by pressing the INSERT key.
-
-To avoid patching in the wrong moment and at the wrong place the user must LEAVE THE MOUSE ALONE during the startup process and let the Broker do the work.
-
-Normally the game launches directly into the 'single race'. The launcher applies the patch and confirms whether it was successful or not. Since the new settings are patched in the RAM they aren't directly visible on the screen. They are visible when the user starts the session. Before the start he can manually adjust the new settings, but this is recommended only to set up multiclass races.
+Since the new settings are patched in the RAM they aren't directly visible on the screen. They are visible when the user starts the session. Before the start he can manually adjust the new settings, but this is recommended only to set up multiclass races.
 
 If the patching goes well all the time, the user can make the AMS2Broker completely invisible and start the session automatically too. This can be set in the <code>config.ini</code>. This file is located in the Ams2Broker directory.
 
