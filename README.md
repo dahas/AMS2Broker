@@ -38,7 +38,7 @@ All of them. The race is configured directly through the launcher. Therefore, th
 Yes, they can, but this requires the developer to implement a feature that loads the additional files into their app.
 
 ## In summary:
-The AMS2Broker is a tool for automatically configuring a 'single race'. It offers maximum security and convenience for the user and maximum flexibility for the developer.
+The AMS2Broker is a tool for automatically configuring a 'single race' in AUTOMOBILISTA2. It offers maximum security and convenience for the user and maximum flexibility for the developer.
 
 <hr>
 
