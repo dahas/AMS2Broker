@@ -164,6 +164,12 @@ var startInfo = new ProcessStartInfo
 Process.Start(startInfo);
 ```
 
+### Alternative implementation 
+
+The implementation described above allows you to offer your users a 1-click experience. Alternatively, you can leave the AMS2Broker as a standalone tool that is not directly integrated into your app:
+
+Instead of starting the race at the touch of a button, you only create the template, which always has the same name and is located in the same location. The user then configures the AMS2Broker to use this template each time he runs it. 
+
 ### Vehicle and Track IDs:
 
 IDs for vehicles and tracks can be retrieved via the AMS2 Dedicated Server. There are several response files in the Resources folder. These may be out of date. To obtain the IDs for the latest content, you can install the Dedicated Server via Steam (Tools) and run it locally. Once the server is running, you can retrieve the information using the following URIs:
@@ -179,7 +185,7 @@ To retrieve the race result in your app implement the Shared Memory API. You fin
 
 # USAGE GUIDE
 
-As soon as the user clicks the button in your app and goes to the race, the launcher opens and starts the game. The game launches directly into 'single race' (custom event) where the launcher applies the patch and confirms whether it was successfully done or not. 
+As soon as the user clicks the button in your app and goes to the race or when he runs the Broker with your template, the launcher opens and starts the game. The game launches directly into 'single race' (custom event) where the launcher applies the patch and confirms whether it was successfully done or not. 
 
 Since the new settings are patched in the RAM they aren't directly visible on the screen. They are visible when the user starts the session. Before the start he can manually adjust the new settings, but this is recommended only to set up multiclass races.
 
